@@ -1,0 +1,47 @@
+appId: com.flowmind.feishucopilot
+productName: FlowMind 飞书 AI 工作台
+copyright: Copyright © 2026
+
+asar: true
+compression: normal
+npmRebuild: false
+publish: null
+electronDist: node_modules/electron/dist
+extraMetadata:
+  main: desktop/bootstrap.cjs
+
+directories:
+  output: desktop/out
+
+files:
+  - dist/**/*
+  - server/**/*
+  - desktop/**/*
+  - package.json
+  - '!desktop/out/**/*'
+  - '!desktop/out-*/**/*'
+
+win:
+  executableName: FlowMind
+  icon: desktop/assets/icon.ico
+  requestedExecutionLevel: asInvoker
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+  artifactName: '${productName}-${version}-${arch}.${ext}'
+  forceCodeSigning: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: FlowMind 飞书 AI 工作台
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true

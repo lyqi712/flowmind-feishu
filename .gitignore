@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env*
+!.env.example
+*.log
+*.sqlite
+*.sqlite-*
+*.db
+runtime-data/
+.runtime/
+.tmp/
+evidence/
+app/desktop/out*/
+app/*.traineddata
+app/*.traineddata.gz
+.DS_Store
+Thumbs.db
