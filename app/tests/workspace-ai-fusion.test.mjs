@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const mainSource = (await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 
 test('阅读器快捷提问携带当前文档与选区进入统一问答 Tab', () => {
   for (const fragment of [
@@ -15,9 +15,9 @@ test('阅读器快捷提问携带当前文档与选区进入统一问答 Tab', (
 test('知识观察问题携带节点来源和相邻文档进入统一问答', () => {
   for (const fragment of [
     'function handleKnowledgeObservationAsk(prompt, node, relatedNodes = [])',
-    'setGraphOpen(false);\n    const documentIds',
     'const sourceRefs = Array.isArray(node?.raw?.sourceRefs) ? node.raw.sourceRefs : []',
     'resources: [...sourceRefs, ...relatedDocuments]',
+    'handleWorkspaceAsk(prompt, { currentDocument, resources: [...sourceRefs, ...relatedDocuments] });',
     'onAskNode={handleKnowledgeObservationAsk}'
   ]) assert.ok(mainSource.includes(fragment), `missing ${fragment}`);
 });

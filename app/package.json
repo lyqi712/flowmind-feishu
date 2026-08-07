@@ -40,7 +40,8 @@
   "main": "desktop/bootstrap.cjs",
   "devDependencies": {
     "electron": "43.2.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.1"
   },
   "description": "飞书知识库 AI 助手：同步、检索问答、引用溯源与可组合 Skill 工作流",
   "author": "FlowMind",
