@@ -74,7 +74,7 @@ test('appearance section exposes density and display controls', () => {
 });
 
 test('model section preserves provider summary and model management entry', () => {
-  const model = sourceSection(component, 'function ModelSettingsSection', 'function Metric');
+  const model = sourceSection(component, 'function ModelSettingsSection', 'function McpConnectorSettings');
   includesAll(model, [
     '当前模型配置摘要',
     'settings.configured',
@@ -86,11 +86,9 @@ test('model section preserves provider summary and model management entry', () =
     "settings.hasApiKey ? '已安全保存'",
     'onClick={() => onManageModels?.()}',
     '管理模型',
-    '第三方中转站',
-    'data-settings-mcp="true"',
-    '添加 MCP 服务',
-    '/api/settings/mcp'
+    '第三方中转站'
   ], 'model settings');
+  assert.doesNotMatch(model, /data-settings-mcp/, 'MCP 入口在知识库连接，不在模型页');
 });
 
 test('knowledge section loads Feishu and content status and exposes refresh plus wizard actions', () => {
@@ -114,7 +112,11 @@ test('knowledge section loads Feishu and content status and exposes refresh plus
     'counts.content_items',
     'counts.index_chunks',
     'counts.spaces',
-    'counts.ingestion_jobs'
+    'counts.ingestion_jobs',
+    'data-settings-mcp="true"',
+    '添加 MCP 服务',
+    '/api/settings/mcp',
+    '<McpConnectorSettings fetcher={fetcher} onToast={onToast} />'
   ], 'knowledge settings interactions');
 });
 

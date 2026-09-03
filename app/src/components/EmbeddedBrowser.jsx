@@ -153,8 +153,8 @@ export function EmbeddedBrowser({
         ) : (
           <div className="embedded-browser-empty">
             <Globe size={28} />
-            <b>在笔记工作台里打开网页</b>
-            <small>看完只记这次容易忘的点，不要整页复制。</small>
+            <b>粘贴网址，看完再剪藏</b>
+            <small>只记这次容易忘的点，不要整页复制。</small>
           </div>
         )}
       </div>

@@ -150,7 +150,9 @@ test('斜杠菜单只留提问相关动作，录音写作进对话更多', () =>
   assert.doesNotMatch(mainSource, /id: 'action-writing'/);
   assert.match(mainSource, />录音纪要</);
   assert.match(mainSource, />写作草稿</);
+  assert.match(mainSource, />Skill 工作台</);
   assert.match(mainSource, /onCreateProblemNote=\{handleWorkspaceCreateProblemNote\}/);
+  assert.doesNotMatch(mainSource, /该模块将在后续工作台版本中开放/);
 });
 
 test('Copilot 配置能绑定知识库、开场问题，并回到问答使用', () => {

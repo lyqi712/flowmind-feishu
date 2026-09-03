@@ -182,7 +182,6 @@ function ModelSettingsSection({ settings, provider, onManageModels, fetcher, onT
         <section className="settings-experience-backup-card"><div><span className="settings-experience-card-icon"><FolderSync size={20} aria-hidden="true" /></span><span><h2>中转站适配</h2><p>支持自定义 Base URL、鉴权 Header、模型列表以及请求和响应字段映射。</p></span></div></section>
         <section className="settings-experience-backup-card"><div><span className="settings-experience-card-icon"><CheckCircle2 size={20} aria-hidden="true" /></span><span><h2>连接诊断</h2><p>在模型管理中测试鉴权、模型可用性和请求延迟，再决定是否保存。</p></span></div></section>
       </div>
-      <McpConnectorSettings fetcher={fetcher} onToast={onToast} />
     </div>
   );
 }
@@ -274,7 +273,7 @@ function Metric({ label, value, hint }) {
   return <div className="settings-experience-metric"><small>{label}</small><b>{humanNumber(value)}</b>{hint && <span>{hint}</span>}</div>;
 }
 
-function KnowledgeSettingsSection({ feishu, contentStatus, loading, error, onRefresh, onOpenFeishuWizard, onLoginFeishu, onLogoutFeishu, loginBusy = false }) {
+function KnowledgeSettingsSection({ feishu, contentStatus, loading, error, onRefresh, onOpenFeishuWizard, onLoginFeishu, onLogoutFeishu, loginBusy = false, fetcher, onToast }) {
   const counts = contentStatus?.counts || {};
   const jobs = Array.isArray(contentStatus?.jobs) ? contentStatus.jobs : [];
   const activeJobs = jobs.filter(job => ['queued', 'running', 'processing'].includes(String(job.status || '').toLowerCase())).length;
@@ -331,6 +330,7 @@ function KnowledgeSettingsSection({ feishu, contentStatus, loading, error, onRef
           <Metric label="导入任务" value={counts.ingestion_jobs} hint={activeJobs ? `${activeJobs} 个处理中` : '当前无排队任务'} />
         </div>
       </section>
+      <McpConnectorSettings fetcher={fetcher} onToast={onToast} />
     </div>
   );
 }
@@ -508,7 +508,7 @@ export function SettingsWorkspace({
 
       {activeSection === SECTION_APPEARANCE && <AppearanceSettingsSection compact={compact} onToggleCompact={onToggleCompact} />}
       {activeSection === SECTION_MODEL && <ModelSettingsSection settings={modelSettings} provider={provider} onManageModels={onManageModels} fetcher={fetcher} onToast={onToast} />}
-      {activeSection === SECTION_KNOWLEDGE && <KnowledgeSettingsSection feishu={feishu} contentStatus={contentStatus} loading={knowledgeLoading} error={knowledgeError} onRefresh={refreshKnowledgeStatus} onOpenFeishuWizard={onOpenFeishuWizard} onLoginFeishu={loginFeishuUser} onLogoutFeishu={logoutFeishuUser} loginBusy={loginBusy} />}
+      {activeSection === SECTION_KNOWLEDGE && <KnowledgeSettingsSection feishu={feishu} contentStatus={contentStatus} loading={knowledgeLoading} error={knowledgeError} onRefresh={refreshKnowledgeStatus} onOpenFeishuWizard={onOpenFeishuWizard} onLoginFeishu={loginFeishuUser} onLogoutFeishu={logoutFeishuUser} loginBusy={loginBusy} fetcher={fetcher} onToast={onToast} />}
       {activeSection === SECTION_PRIVACY && <PrivacySettingsSection backupBusy={backupBusy} restoreBusy={restoreBusy} fileInputRef={fileInputRef} onDownloadBackup={downloadBackup} onChooseBackup={() => fileInputRef.current?.click()} onRestoreBackup={restoreBackup} session={workspaceSession} onSessionChange={onWorkspaceSessionChange} onToast={onToast} />}
     </main>
   );

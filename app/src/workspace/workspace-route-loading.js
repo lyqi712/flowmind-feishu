@@ -22,6 +22,7 @@ const ROUTE_SURFACES = Object.freeze({
   web: ['embedded-browser'],
   writing: ['writing'],
   recording: ['recording'],
+  skills: [],
   copilots: ['copilot'],
   settings: ['settings']
 });

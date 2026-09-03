@@ -78,7 +78,12 @@ test('路由预取保持原 route id，并只加载该交互需要的 surface', 
   assert.notDeepEqual(workspaceRouteSurfaces('analysis'), workspaceRouteSurfaces('copilots'));
   assert.deepEqual(workspaceRouteSurfaces('recording'), ['recording']);
   assert.deepEqual(workspaceRouteSurfaces('settings'), ['settings']);
+  assert.deepEqual(workspaceRouteSurfaces('skills'), []);
   assert.deepEqual(workspaceRouteSurfaces('unknown'), []);
+});
+
+test('对话顶栏更多菜单向下展开，避免被顶栏裁掉', () => {
+  assert.match(stylesSource, /\.workspace-head \.message-more-menu\{top:calc\(100% \+ 6px\)/);
 });
 
 test('同一 surface 的并发加载复用一个 Promise', async () => {

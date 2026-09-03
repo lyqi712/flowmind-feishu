@@ -36,6 +36,8 @@ test('MCP connect kit is a copy-paste prompt other AIs can follow without guessi
   assert.match(kit.codex, /FLOWMIND_API_URL/);
   assert.match(settings, /复制给其他 AI 的提示词/);
   assert.match(settings, /data-mcp-connect-kit/);
+  assert.match(settings, /data-settings-panel=\{SECTION_KNOWLEDGE\}/);
+  assert.match(settings, /<McpConnectorSettings fetcher=\{fetcher\} onToast=\{onToast\} \/>/);
 });
 
 test('飞书向导和收集入口给出第一次就能跟着做的步骤', () => {
