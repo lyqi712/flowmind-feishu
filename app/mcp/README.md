@@ -9,9 +9,12 @@
 - `run_skill`
 - `feishu_discover`
 - `feishu_sync`
+- `flowmind://connect`
 - `flowmind://status`
 - `flowmind://documents`
 - `flowmind://documents/{documentId}`
+
+最快的接入方式：在 FlowMind 设置 → 模型与 Provider → **复制给其他 AI 的提示词**，把那段话发给 Claude / ChatGPT / Cursor。对方按提示词用 stdio 连上后即可检索本机知识库；`ask_knowledge` 没有 citations 时不得编造。
 
 启动：
 

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import './FeishuSyncWizard.css';
 import { startFeishuUserLogin } from '../workspace/feishu-login.js';
+import { FEISHU_APP_PERMISSION_STEPS, FEISHU_APP_SCOPE_LABELS } from '../workspace/feishu-setup.js';
 
 const STEPS = [
   { id: 'credentials', label: '连接应用', hint: 'App ID 与 Secret' },
@@ -233,7 +234,11 @@ function ErrorBanner({ error }) {
   return <div className="fw-error"><AlertCircle size={16}/><div><b>{errorText(error)}</b><small>{error.stage ? `阶段：${error.stage}` : '请检查配置后重试'}{error.code ? ` · ${error.code}` : ''}</small></div></div>;
 }
 function CredentialsStep({ form, setForm, settings, busy, error, showSecret, setShowSecret, save, login }) {
-  return <div className="fw-pane"><div className="fw-info-card"><KeyRound size={20}/><div><b>{settings.credentialsConfigured ? '应用凭据已配置' : '首次连接需要飞书自建应用凭据'}</b><p>{settings.credentialsConfigured ? `当前 App ID：${settings.appIdMasked}` : '在飞书开放平台创建自建应用，并授予 Wiki、云文档、电子表格和多维表格只读权限。'}</p></div>{settings.credentialsConfigured && <CheckCircle2 size={19}/>}</div>
+  return <div className="fw-pane"><div className="fw-info-card"><KeyRound size={20}/><div><b>{settings.credentialsConfigured ? '应用凭据已配置' : '按这三步开通机器人，不用自己摸索'}</b><p>{settings.credentialsConfigured ? `当前 App ID：${settings.appIdMasked}` : '先创建自建应用、开通只读权限并发布，再把文档授权给这个应用。'}</p></div>{settings.credentialsConfigured && <CheckCircle2 size={19}/>}</div>
+    {!settings.credentialsConfigured && <ol className="fw-guide" data-feishu-permission-guide="true">
+      {FEISHU_APP_PERMISSION_STEPS.map((step, index) => <li key={step.title}><b>{index + 1}. {step.title}</b><p>{step.detail}{step.href ? <> <a href={step.href} target="_blank" rel="noreferrer">打开开放平台</a></> : null}</p></li>)}
+    </ol>}
+    <div className="fw-scope-chips" aria-label="需要开通的权限">{FEISHU_APP_SCOPE_LABELS.map(item => <span key={item.id} className="fw-type blue">{item.label}<b>{item.id}</b></span>)}</div>
     {settings.credentialsConfigured && <div className="fw-info-card"><ShieldCheck size={20}/><div><b>{settings.user?.loggedIn ? `已登录飞书${settings.user.name ? ` · ${settings.user.name}` : ''}` : '登录飞书账号拉图'}</b><p>{settings.user?.loggedIn ? '应用无权下载的图片，会按你的账号权限再试一次。' : '部分文档应用读得了正文、下不了图。登录后把当前站点 /api/feishu/oauth/callback 加到开放平台重定向 URL。'}</p></div>{settings.user?.loggedIn ? <CheckCircle2 size={19}/> : <button type="button" className="fw-primary" disabled={busy === 'oauth'} onClick={login}>{busy === 'oauth' ? '正在打开飞书' : '登录飞书'}</button>}</div>}
     <div className="fw-form-card"><label><span>App ID</span><input value={form.appId} onChange={event => setForm(current => ({ ...current, appId: event.target.value }))} placeholder={settings.appIdMasked || 'cli_xxx'} autoComplete="off"/><small>{settings.credentialsConfigured ? '留空继续使用已保存的 App ID。' : '飞书开放平台 → 凭证与基础信息。'}</small></label>
       <label><span>App Secret</span><div className="fw-password"><input type={showSecret ? 'text' : 'password'} value={form.appSecret} onChange={event => setForm(current => ({ ...current, appSecret: event.target.value }))} placeholder={settings.credentialsConfigured ? '留空继续使用已保存的 Secret' : '输入 App Secret'} autoComplete="new-password"/><button type="button" aria-label={showSecret ? '隐藏 App Secret' : '显示 App Secret'} onClick={() => setShowSecret(!showSecret)}>{showSecret ? <EyeOff size={16}/> : <Eye size={16}/>}</button></div><small>保存后此输入框立即清空；后端只返回“已配置”状态。</small></label>

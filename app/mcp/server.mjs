@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { DEFAULT_STATE_FILE } from '../server/app.mjs';
 import { EMPTY_RETRIEVAL_ANSWER } from '../server/retrieval-policy.mjs';
 import { answerQuestion, searchDocuments } from '../server/retrieval.mjs';
+import { noteSearchableContent } from '../server/note-knowledge.mjs';
+import { buildMcpConnectKit } from '../server/mcp-connect.mjs';
 import { executeSkill, SKILLS } from '../server/skills.mjs';
 import { JsonStateStore } from '../server/state-store.mjs';
 import { ContentRepository } from '../server/content/index.mjs';
@@ -166,11 +168,23 @@ export async function createFlowMindMcpServer({
     const repositoryDocuments = content.listContentItems({ includeDeleted: false, includeTags: true, limit: 2000 })
       .filter(item => item.contentType !== 'note')
       .map(contentItemToDocument);
-    return repositoryDocuments.length ? repositoryDocuments : (store.get().documents || []);
+    const notes = (store.get().notes || []).filter(note => !note.deletedAt).map(note => ({
+      id: note.id,
+      title: note.title || '未命名笔记',
+      content: noteSearchableContent(note),
+      type: 'note',
+      contentType: 'note',
+      knowledgeBaseId: 'local-content',
+      source: 'local-note',
+      url: null,
+      updatedAt: note.updatedAt || null
+    }));
+    const docs = repositoryDocuments.length ? repositoryDocuments : (store.get().documents || []);
+    return [...docs, ...notes];
   };
   const server = new McpServer({ name: 'flowmind-feishu', version: '2.0.0' }, {
     capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
-    instructions: 'FlowMind 飞书 AI 工作台：检索本地同步内容、执行知识问答和 Skill，并通过运行中的 FlowMind API 发现或同步飞书来源。'
+    instructions: 'FlowMind 本地知识库。先读 flowmind://connect，再用 search_knowledge / ask_knowledge。citations 为空时不要编造。'
   });
 
   server.registerTool('flowmind_status', {
@@ -279,6 +293,10 @@ export async function createFlowMindMcpServer({
     content.migrateLegacyState(store.get());
     return jsonText({ ok: data.ok, source: data.source, requestedSource: data.requestedSource, stats: data.stats, warnings: data.warnings || [], fallbackUsed: Boolean(data.fallbackUsed) });
   });
+
+  server.registerResource('flowmind-connect', 'flowmind://connect', {
+    title: '连接说明', description: '发给其他 AI 的 MCP 连接提示词', mimeType: 'text/plain'
+  }, async uri => ({ contents: [{ uri: uri.href, mimeType: 'text/plain', text: buildMcpConnectKit({ apiBaseUrl, stateFile }).prompt }] }));
 
   server.registerResource('flowmind-status', 'flowmind://status', {
     title: 'FlowMind 工作台状态', description: '知识库、文档、同步和 Skill 的公开状态', mimeType: 'application/json'

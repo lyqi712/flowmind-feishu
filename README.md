@@ -28,7 +28,8 @@
 - **飞书知识进本地库**：粘贴 Docx / Wiki / Sheet / Bitable / Folder 链接，自动发现空间，SQLite/FTS 做唯一正文来源。
 - **问库里的事实**：流式回答、可点击引用、空检索拒答。寒暄和「下次记得…」不等模型。
 - **问题记录**：独立笔记类型，记坑不记百科。网页剪藏带 `sourceRefs`。
-- **MCP**：Claude Desktop / Codex 可把 FlowMind 当知识工具；设置里也可接入其他 MCP 服务（只列出和读取，不擅自写入）。
+- **MCP**：设置里复制一段提示词发给其他 AI，即可检索本机知识库；没有出处不许编。
+- **笔记进对话**：笔记可插入图片、文件和网页；在输入框 `@` 这篇笔记后，AI 会读正文和附件文字。
 
 ## 安装
 
@@ -56,7 +57,9 @@ npm.cmd run desktop:pack   # Windows NSIS 安装包
 
 ## 接到 Claude / Codex
 
-仓库里有现成模板：
+最快的接入方式：打开 FlowMind → 设置 → 模型与 Provider → **复制给其他 AI 的提示词**，把那段话发给 Claude / ChatGPT / Cursor。
+
+仓库里也有配置模板：
 
 - [`app/mcp/claude-desktop.example.json`](app/mcp/claude-desktop.example.json)
 - [`app/mcp/codex.example.toml`](app/mcp/codex.example.toml)

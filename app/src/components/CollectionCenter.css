@@ -36,6 +36,13 @@
   transition: background .16s ease, color .16s ease, transform .16s ease;
 }
 .collection-center-close:hover { color: #373326; background: #eeece7; transform: translateY(-1px); }
+.collection-onboarding {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  margin: 0; padding: 14px 28px 0; list-style: none;
+}
+.collection-onboarding li { padding: 12px 14px; border: 1px solid #f0eee9; border-radius: 14px; background: #fffaf6; }
+.collection-onboarding b { display: block; color: #c17053; font-size: 12px; }
+.collection-onboarding span { display: block; margin-top: 4px; color: #7c7662; font-size: 12px; line-height: 1.5; }
 .collection-center-grid {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   gap: 16px; min-width: 0; padding: 22px 28px 18px;
@@ -143,7 +150,7 @@
   .collection-center-backdrop { align-items: end; padding: 0; }
   .collection-center { width: 100%; max-height: 94vh; border-radius: 22px 22px 0 0; }
   .collection-center-header { padding: 20px 18px 17px; }
-  .collection-center-grid { grid-template-columns: minmax(0, 1fr); padding: 16px 18px; }
+  .collection-onboarding { grid-template-columns: minmax(0, 1fr); padding: 12px 18px 0; }
   .collection-entry-feishu { grid-column: auto; align-items: flex-start; flex-wrap: wrap; }
   .collection-entry-feishu .collection-entry-copy { flex: 1 1 calc(100% - 60px); }
   .collection-entry-web { flex-wrap: wrap; align-items: flex-start; }

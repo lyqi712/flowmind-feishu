@@ -21,9 +21,11 @@ import { createMarkdownMirrorService } from './markdown-mirror/index.mjs';
 import { ocrSyncAttachments } from './sync-ocr.mjs';
 import { hasBrokenEncoding } from '../src/workspace/display-text.js';
 import { appendWikiLinksToNote, findRelatedProblemNote, mergeProblemNoteContent } from '../src/workspace/note-capture.js';
-import { mergeNoteSourceRefs } from '../src/workspace/web-browse.js';
+import { mergeNoteSourceRefs, webClipSourceRef } from '../src/workspace/web-browse.js';
 import { createAgentRuntime, createToolRegistry } from './agent/index.mjs';
 import { McpConnectorGateway, normalizeMcpConnectors, publicMcpConnectors } from './mcp-gateway.mjs';
+import { buildMcpConnectKit } from './mcp-connect.mjs';
+import { extractNoteAttachmentText, noteSearchableContent, webClipMarkdown } from './note-knowledge.mjs';
 import { WorkspaceSyncService } from './workspace-sync.mjs';
 import { refreshAgentEvidence } from './agent/evidence.mjs';
 import { bindEvidenceRef, classifyEvidence, evidenceDigest, evidenceDocumentId, evidenceVersion, isLegacyUnobservedRef } from './evidence.mjs';
@@ -313,8 +315,8 @@ function noteToKnowledgeDocument(note) {
   return {
     id: note.id,
     title,
-    content: note.content || '',
-    contentChars: String(note.content || '').length,
+    content: noteSearchableContent(note),
+    contentChars: noteSearchableContent(note).length,
     type: 'note',
     contentType: 'note',
     knowledgeBaseId: note.knowledgeBaseId || note.spaceId || 'local-content',
@@ -1172,6 +1174,7 @@ function noteAttachmentManifest(noteId, attachment) {
     ...safe,
     noteId,
     isImage: String(safe.mimeType || '').toLowerCase().startsWith('image/'),
+    extractedText: String(attachment.metadata?.extractedText || '').slice(0, 80000),
     url: `/api/notes/${encodeURIComponent(noteId)}/attachments/${encodeURIComponent(safe.id)}`,
     downloadUrl: `/api/notes/${encodeURIComponent(noteId)}/attachments/${encodeURIComponent(safe.id)}/download`
   };
@@ -1581,9 +1584,9 @@ export function createApp({
     };
     if (existing) {
       if (existing.contentType !== 'note') throw new Error(`ContentItem is not a note: ${note.id}`);
-      return content.updateNote(note.id, { title: note.title, content: note.content, tags: note.tags || [], metadata }).item;
+      return content.updateNote(note.id, { title: note.title, content: noteSearchableContent(note), tags: note.tags || [], metadata }).item;
     }
-    return content.createNote({ id: note.id, externalId: `state-note:${note.id}`, title: note.title, content: note.content, tags: note.tags || [], metadata }).item;
+    return content.createNote({ id: note.id, externalId: `state-note:${note.id}`, title: note.title, content: noteSearchableContent(note), tags: note.tags || [], metadata }).item;
   }
 
   function noteWithAttachments(note) {
@@ -2176,14 +2179,15 @@ export function createApp({
   });
 
   app.get('/api/settings/mcp', (req, res) => {
+    const kit = buildMcpConnectKit({
+      apiBaseUrl: `${req.protocol}://${req.get('host') || '127.0.0.1:8789'}`,
+      stateFile: store.filePath
+    });
     res.json({
       ok: true,
       connectors: publicMcpConnectors(store.get().settings?.mcpConnectors),
-      inbound: {
-        command: 'node',
-        args: ['mcp/server.mjs'],
-        env: { FLOWMIND_API_URL: 'http://127.0.0.1:8789' }
-      }
+      inbound: kit.inbound,
+      connectKit: kit
     });
   });
 
@@ -3592,6 +3596,7 @@ export function createApp({
       const owner = syncNoteOwner(note);
       const attachmentId = id('note_attachment');
       const mimeType = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0].trim().toLowerCase() || 'application/octet-stream';
+      const extractedText = extractNoteAttachmentText(fileName, mimeType, bytes);
       const attachment = content.upsertAttachment({
         id: attachmentId,
         contentItemId: owner.id,
@@ -3600,7 +3605,7 @@ export function createApp({
         mimeType,
         byteSize: bytes.length,
         bytes,
-        metadata: { kind: 'note-attachment', noteId: note.id, isImage: mimeType.startsWith('image/'), lastModified: req.headers['x-file-last-modified'] || null }
+        metadata: { kind: 'note-attachment', noteId: note.id, isImage: mimeType.startsWith('image/'), lastModified: req.headers['x-file-last-modified'] || null, extractedText }
       });
       const manifest = noteAttachmentManifest(note.id, attachment);
       let persistedNote;
@@ -3611,10 +3616,30 @@ export function createApp({
         target.updatedAt = new Date().toISOString();
         persistedNote = { ...target };
       });
+      if (persistedNote) syncNoteOwner(persistedNote);
       const label = noteMarkdownLabel(fileName);
       const markdown = manifest.isImage ? `![${label}](${manifest.url})` : `[📎 ${label}](${manifest.downloadUrl})`;
       graphIndex.rebuild();
       return res.status(201).json({ ok: true, attachment: manifest, markdown, note: noteWithAttachments(persistedNote || note) });
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/notes/:id/web-clip', async (req, res, next) => {
+    try {
+      const note = store.get().notes.find((item) => item.id === req.params.id && !item.deletedAt);
+      if (!note) return res.status(404).json({ ok: false, error: { code: 'NOTE_NOT_FOUND', message: '笔记不存在' } });
+      const preview = await fetchPublicPagePreview(req.body?.url);
+      const markdown = webClipMarkdown({ title: preview.title, url: preview.url, excerpt: preview.excerpt });
+      const content = `${String(note.content || '').trim()}${note.content?.trim() ? '\n\n' : ''}${markdown}`.trim();
+      const sourceRefs = mergeNoteSourceRefs(note.sourceRefs, [webClipSourceRef({ url: preview.url, title: preview.title, excerpt: preview.excerpt })].filter(Boolean));
+      const updated = { ...note, content, sourceRefs, updatedAt: new Date().toISOString() };
+      syncNoteOwner(updated);
+      await store.update((state) => {
+        const index = state.notes.findIndex((item) => item.id === note.id && !item.deletedAt);
+        if (index >= 0) state.notes[index] = updated;
+      });
+      graphIndex.rebuild();
+      res.status(201).json({ ok: true, note: noteWithAttachments(updated), preview, markdown });
     } catch (error) { next(error); }
   });
 

@@ -201,11 +201,16 @@ export function CollectionCenter({ open = true, onClose, onOpenFeishu, onImportF
         <header className="collection-center-header">
           <div className="collection-center-heading">
             <span className="collection-center-brand" aria-hidden="true"><Sparkles size={20}/></span>
-            <div><p className="collection-center-eyebrow">快速收集</p><h2 id={titleId}>把内容放进 FlowMind</h2><p id={descriptionId}>链接、文件或随手记录，从这里一步进入你的知识库。</p></div>
+            <div><p className="collection-center-eyebrow">第一次用，按这个顺序</p><h2 id={titleId}>把内容放进 FlowMind</h2><p id={descriptionId}>先同步飞书或拖文件，再回首页提问。导入后立刻能搜、能问。</p></div>
           </div>
           <button ref={closeButtonRef} type="button" className="collection-center-close" aria-label="关闭收集中心" onClick={onClose}><X size={20}/></button>
         </header>
 
+        <ol className="collection-onboarding" data-onboarding="import">
+          <li><b>1. 飞书</b><span>点「打开飞书导入」，按向导开通机器人权限后粘贴文档链接。</span></li>
+          <li><b>2. 本地文件</b><span>把 PDF、Word、图片拖进下面的虚线框，导入后就能提问。</span></li>
+          <li><b>3. 网页或随手记</b><span>打开网页剪藏，或把一段文字收进来。</span></li>
+        </ol>
         <div className="collection-center-grid">
           <article className="collection-entry collection-entry-feishu">
             <div className="collection-entry-icon" aria-hidden="true"><Link2 size={22}/></div>

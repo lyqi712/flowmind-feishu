@@ -246,10 +246,13 @@ function contextIdentity(snapshot) {
 
 function EmptyRecent({ onCollect }) {
   return (
-    <div className="unified-workspace-empty">
+    <div className="unified-workspace-empty" data-onboarding="home">
       <span><Inbox size={19} aria-hidden="true" /></span>
-      <div><b>把第一份资料放进来</b><p>粘贴飞书链接、拖入文件，或保存一段文字。</p></div>
-      <button type="button" onClick={onCollect}><Plus size={14} aria-hidden="true" />收集</button>
+      <div>
+        <b>第一次用，先收一份材料再问</b>
+        <p>1. 点收集，粘贴飞书链接或拖文件。2. 按向导给机器人开通只读权限。3. 回这里直接提问，或打开笔记把文件、网页放进去再 @ 它。</p>
+      </div>
+      <button type="button" onClick={onCollect}><Plus size={14} aria-hidden="true" />开始收集</button>
     </div>
   );
 }

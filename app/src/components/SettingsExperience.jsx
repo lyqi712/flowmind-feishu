@@ -189,11 +189,25 @@ function ModelSettingsSection({ settings, provider, onManageModels, fetcher, onT
 
 function McpConnectorSettings({ fetcher = globalThis.fetch, onToast }) {
   const [connectors, setConnectors] = useState([]);
+  const [kit, setKit] = useState(null);
   const [draft, setDraft] = useState({ name: '', command: 'npx', args: '' });
   const [busy, setBusy] = useState('');
   useEffect(() => {
-    requestJson(fetcher, '/api/settings/mcp').then(data => setConnectors(data.connectors || [])).catch(() => {});
+    requestJson(fetcher, '/api/settings/mcp').then(data => {
+      setConnectors(data.connectors || []);
+      setKit(data.connectKit || null);
+    }).catch(() => {});
   }, [fetcher]);
+  async function copyText(label, value) {
+    const text = String(value || '');
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      onToast?.(`已复制${label}，发给其他 AI 即可`);
+    } catch {
+      onToast?.('复制失败，请手动选中文本', 'error');
+    }
+  }
   async function save(next) {
     const data = await requestJson(fetcher, '/api/settings/mcp', {
       method: 'PUT',
@@ -204,11 +218,25 @@ function McpConnectorSettings({ fetcher = globalThis.fetch, onToast }) {
   }
   return (
     <>
-      <p className="settings-group-title">MCP 连接</p>
-      <section className="settings-experience-backup-card" data-settings-mcp="true">
+      <p className="settings-group-title">把 FlowMind 知识库交给其他 AI</p>
+      <section className="settings-experience-backup-card" data-settings-mcp="true" data-mcp-connect-kit="true">
         <div><span className="settings-experience-card-icon"><FolderSync size={20} aria-hidden="true" /></span><span>
-          <h2>把其他 AI 接到当前工作台</h2>
-          <p>这里添加 Claude Desktop、Codex 或其他 MCP 服务。Agent 只会列出和读取，不会擅自执行外部写入。</p>
+          <h2>复制提示词，其他 AI 就能连上这个库</h2>
+          <p>先让本机 FlowMind 保持运行。把提示词发给 Claude、ChatGPT、Cursor 或任何支持 MCP 的助手；没有 citations 时它们必须说库里没有，不能编。</p>
+        </span></div>
+        <div className="settings-mcp-list">
+          <button type="button" className="settings-experience-primary" onClick={() => copyText('连接提示词', kit?.prompt)}>复制给其他 AI 的提示词</button>
+          <button type="button" className="settings-experience-secondary" onClick={() => copyText('Claude Desktop 配置', JSON.stringify(kit?.claudeDesktop || {}, null, 2))}>复制 Claude Desktop 配置</button>
+          <button type="button" className="settings-experience-secondary" onClick={() => copyText('Cursor 配置', JSON.stringify(kit?.cursor || {}, null, 2))}>复制 Cursor 配置</button>
+          <button type="button" className="settings-experience-secondary" onClick={() => copyText('Codex 配置', kit?.codex)}>复制 Codex 配置</button>
+          {kit?.prompt ? <pre className="settings-mcp-prompt" aria-label="MCP 连接提示词">{kit.prompt}</pre> : null}
+        </div>
+      </section>
+      <p className="settings-group-title">可选：让 FlowMind 去读其他 MCP</p>
+      <section className="settings-experience-backup-card">
+        <div><span className="settings-experience-card-icon"><FolderSync size={20} aria-hidden="true" /></span><span>
+          <h2>本机再接其他 MCP 服务</h2>
+          <p>这里添加文件系统或其他 MCP。FlowMind 只会列出和读取，不会擅自执行外部写入。</p>
         </span></div>
         <div className="settings-mcp-list">
           {connectors.map(item => (
