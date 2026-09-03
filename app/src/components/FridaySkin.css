@@ -1,0 +1,1610 @@
+/* Happy Friday-inspired shell: icon rail, rounded stage, grouped settings, Q&A notes.
+   Loaded last. IMA class names stay in source for existing CSS contracts. */
+
+:root {
+  color-scheme: light;
+  --friday-bg: #f3f2f0;
+  --friday-paper: #fcfcfb;
+  --friday-ink: #1c1917;
+  --friday-muted: #78716c;
+  --friday-faint: #a8a29e;
+  --friday-line: #e8e6e3;
+  --friday-hover: rgba(28, 25, 23, .06);
+  --friday-active: rgba(28, 25, 23, .08);
+  --friday-accent: #2563eb;
+  --friday-accent-hover: #1d4ed8;
+  --friday-accent-soft: rgba(37, 99, 235, .1);
+  --friday-shadow: 0 10px 32px rgba(28, 25, 23, .05);
+  --friday-radius: 10px;
+  --friday-rail: 56px;
+  --ink: var(--friday-ink);
+  --ink-muted: var(--friday-muted);
+  --accent: var(--friday-accent);
+  --accent-hover: var(--friday-accent-hover);
+  --accent-soft: var(--friday-accent-soft);
+  --paper: var(--friday-paper);
+  --paper-dim: var(--friday-bg);
+  --hairline: var(--friday-line);
+  --line: var(--friday-line);
+  --muted: var(--friday-muted);
+  --panel: var(--friday-paper);
+}
+
+html[data-theme='dark'],
+html[data-theme-resolved='dark'] {
+  color-scheme: dark;
+  --friday-bg: #141416;
+  --friday-paper: #1c1c20;
+  --friday-ink: #ededed;
+  --friday-muted: #99999e;
+  --friday-faint: #6b6b70;
+  --friday-line: #2e2e33;
+  --friday-hover: rgba(255, 255, 255, .06);
+  --friday-active: rgba(255, 255, 255, .09);
+  --friday-accent: #60a5fa;
+  --friday-accent-hover: #93c5fd;
+  --friday-accent-soft: rgba(96, 165, 250, .16);
+  --friday-shadow: 0 12px 36px rgba(0, 0, 0, .4);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme='light']):not([data-theme-resolved='light']) {
+    color-scheme: dark;
+    --friday-bg: #141416;
+    --friday-paper: #1c1c20;
+    --friday-ink: #ededed;
+    --friday-muted: #99999e;
+    --friday-faint: #6b6b70;
+    --friday-line: #2e2e33;
+    --friday-hover: rgba(255, 255, 255, .06);
+    --friday-active: rgba(255, 255, 255, .09);
+    --friday-accent: #60a5fa;
+    --friday-accent-hover: #93c5fd;
+    --friday-accent-soft: rgba(96, 165, 250, .16);
+    --friday-shadow: 0 12px 36px rgba(0, 0, 0, .4);
+  }
+}
+
+html, body, #root {
+  background: var(--friday-bg);
+  color: var(--friday-ink);
+}
+
+html[data-font-scale='small'] { font-size: 14px; }
+html[data-font-scale='large'] { font-size: 17.5px; }
+
+.unified-workspace[data-skin='friday'] {
+  --workspace-accent: var(--friday-accent);
+  --workspace-accent-hover: var(--friday-accent-hover);
+  --workspace-accent-soft: var(--friday-accent-soft);
+  --workspace-ink: var(--friday-ink);
+  --workspace-muted: var(--friday-muted);
+  --workspace-faint: var(--friday-faint);
+  --workspace-line: var(--friday-line);
+  --ink: var(--friday-ink);
+  --ink-muted: var(--friday-muted);
+  --accent: var(--friday-accent);
+  --accent-hover: var(--friday-accent-hover);
+  --accent-soft: var(--friday-accent-soft);
+  --paper: var(--friday-paper);
+  --paper-dim: var(--friday-bg);
+  --hairline: var(--friday-line);
+  grid-template-columns: var(--friday-rail) minmax(0, 1fr) !important;
+  background: var(--friday-bg) !important;
+  color: var(--friday-ink);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-hero h1,
+.unified-workspace[data-skin='friday'] .side-head h2,
+.app-shell.app-shell-v3[data-skin='friday'] .chat-welcome h2,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-heading h1 {
+  font-family: inherit !important;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-topbar {
+  width: var(--friday-rail);
+  padding: 12px 0 10px;
+  background: var(--friday-bg);
+  border: 0;
+  align-items: center;
+  gap: 0;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-brand {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  grid-template-columns: 32px;
+  grid-template-rows: 32px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-brand > span {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--friday-ink);
+  box-shadow: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-brand b,
+.unified-workspace[data-skin='friday'] .unified-workspace-brand small {
+  display: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-new-chat {
+  width: 36px;
+  min-height: 36px;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  place-items: center;
+  grid-template-columns: 1fr;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-new-chat span { display: none; }
+.unified-workspace[data-skin='friday'] .unified-workspace-new-chat > svg { color: var(--friday-muted); }
+.unified-workspace[data-skin='friday'] .unified-workspace-new-chat:hover {
+  background: var(--friday-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav {
+  width: 100%;
+  gap: 4px;
+  align-items: center;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav button {
+  width: 40px;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--friday-muted);
+  font-weight: 420;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav button span { display: none; }
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav button:hover {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav button.is-active {
+  color: var(--friday-ink);
+  background: var(--friday-active);
+  box-shadow: none;
+  font-weight: 580;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-primary-nav button.is-active svg { color: var(--friday-accent); }
+
+.unified-workspace[data-skin='friday'] .unified-workspace-global-search {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  grid-template-columns: 40px;
+  justify-items: center;
+  align-items: center;
+  justify-self: center;
+  margin: 10px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-global-search-open {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--friday-muted);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-global-search-open:hover {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-global-search-open span,
+.unified-workspace[data-skin='friday'] .unified-workspace-global-search-command {
+  display: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-sidebar-footer {
+  margin-top: auto;
+  padding: 8px 0 4px;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-sidebar-footer > span,
+.unified-workspace[data-skin='friday'] .unified-workspace-sidebar-footer > small { display: none; }
+
+.unified-workspace[data-skin='friday'] .unified-workspace-settings {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--friday-muted);
+  cursor: pointer;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-settings span { display: none; }
+.unified-workspace[data-skin='friday'] .unified-workspace-settings:hover,
+.unified-workspace[data-skin='friday'] .unified-workspace-settings.is-active {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-stage {
+  margin: 0 6px 6px 0;
+  border: 0;
+  border-radius: var(--friday-radius);
+  background: var(--friday-bg);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-stage-header {
+  height: 46px;
+  padding: 0 8px 0 6px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-tabs {
+  height: 46px;
+  gap: 2px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-tab {
+  height: 32px;
+  max-width: 180px;
+  border-radius: 8px;
+  color: var(--friday-muted);
+  background: transparent;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-tab.is-active {
+  color: var(--friday-ink);
+  background: var(--friday-paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-top-actions > button,
+.unified-workspace[data-skin='friday'] .unified-workspace-more > button {
+  color: var(--friday-muted);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-top-actions button:hover,
+.unified-workspace[data-skin='friday'] .unified-workspace-top-actions button.is-active {
+  color: var(--friday-accent);
+  background: var(--friday-accent-soft);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-main,
+.unified-workspace[data-skin='friday'] .unified-workspace-home,
+.unified-workspace[data-skin='friday'] .unified-workspace-active {
+  background: var(--friday-paper);
+  border-radius: var(--friday-radius);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home {
+  padding: clamp(28px, 5vh, 56px) 24px 40px;
+  overflow-y: auto;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-hero-clean {
+  width: min(720px, 100%);
+  text-align: center;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-hero-brand > span {
+  background: var(--friday-ink);
+  border-radius: 50%;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 650;
+  letter-spacing: -.04em;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-hero > p {
+  margin: 0 auto 28px;
+  max-width: 520px;
+  color: var(--friday-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask {
+  min-height: 118px;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--friday-line);
+  border-radius: 22px;
+  background: var(--friday-paper);
+  box-shadow: var(--friday-shadow);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask:focus-within {
+  border-color: rgba(37, 99, 235, .35);
+  box-shadow: 0 12px 36px rgba(37, 99, 235, .08);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask textarea {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask button.unified-workspace-ask-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--friday-paper);
+  background: var(--friday-ink);
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask button.unified-workspace-ask-send:not(:disabled):hover {
+  background: var(--friday-ink);
+  transform: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home-features {
+  width: min(640px, 100%);
+  margin: 28px auto 0;
+  gap: 8px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home-feature {
+  min-height: 84px;
+  gap: 8px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home-feature small {
+  color: var(--friday-faint);
+  font-size: 12px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home-feature-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home > .smart-home,
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-compact {
+  width: min(720px, 100%);
+  margin: 28px auto 0;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-home-actions > span {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--friday-faint);
+  font-size: 12px;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-ask > footer {
+  display: flex !important;
+  width: 100%;
+  justify-content: space-between !important;
+  align-items: center;
+  margin-top: 8px;
+  min-width: 0;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-submit {
+  margin-left: auto;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-more {
+  display: none;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-tab svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  overflow: visible;
+  flex: none;
+  stroke-width: 1.8;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-row {
+  min-height: 0;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+  background: transparent;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-row:hover {
+  background: var(--friday-hover);
+  transform: none;
+  box-shadow: none;
+  padding: 10px 8px;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] {
+  background: var(--friday-bg);
+  color: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame {
+  background: var(--friday-paper);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .side-panel,
+.app-shell.app-shell-v3[data-skin='friday'] .module-side,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-sidebar {
+  background: var(--friday-paper);
+  border-right-color: var(--friday-line);
+  color: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .side-head h2 {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .search-box {
+  border-color: var(--friday-line);
+  border-radius: 10px;
+  background: var(--friday-bg);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row.active,
+.app-shell.app-shell-v3[data-skin='friday'] .doc-row:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .doc-row.selected {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  box-shadow: none;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .kb-icon,
+.app-shell.app-shell-v3[data-skin='friday'] .ai-avatar,
+.app-shell.app-shell-v3[data-skin='friday'] .chat-welcome-mark {
+  color: var(--friday-accent);
+  background: var(--friday-accent-soft);
+  box-shadow: none;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-head {
+  height: 56px;
+  border-bottom-color: var(--friday-line);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .composer {
+  border-color: var(--friday-line);
+  border-radius: 22px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .04);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .composer:focus-within {
+  border-color: rgba(37, 99, 235, .32);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, .08);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .send {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--friday-paper);
+  background: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .send:hover { background: var(--friday-ink); }
+
+.app-shell.app-shell-v3[data-skin='friday'] .message.user .bubble {
+  background: var(--friday-ink);
+  color: var(--friday-paper);
+  border-radius: 16px 16px 6px 16px;
+  box-shadow: none;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .message.assistant .bubble {
+  max-width: min(760px, 92%);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .smart-search-fab {
+  display: none !important;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame:not(.is-document-reader):not(.is-chat-canvas):not(.workspace-tab-frame-single) {
+  grid-template-columns: 252px minmax(0, 1fr) !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame:not(.is-document-reader):not(.is-chat-canvas):not(.workspace-tab-frame-single) > .side-panel,
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame:not(.is-document-reader):not(.is-chat-canvas):not(.workspace-tab-frame-single) > .module-side {
+  display: flex !important;
+  width: 252px !important;
+  min-width: 252px !important;
+  max-width: 252px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse {
+  grid-template-columns: 252px minmax(0, 1fr) !important;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-canvas {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  padding: 20px 28px 28px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-form textarea.user-prompt-input {
+  min-height: 140px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-skills {
+  border: 0;
+  background: var(--friday-bg);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head {
+  height: 52px;
+  min-height: 52px;
+  padding: 0 16px;
+  gap: 12px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .workspace-title {
+  min-width: 0;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .workspace-title strong {
+  max-width: 28vw;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .head-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-workspace-grid,
+.app-shell.app-shell-v3[data-skin='friday'] .note-workspace-grid.is-writing-only {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100%;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-workspace-grid.is-with-assistant {
+  grid-template-columns: minmax(0, 1fr) 320px !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-workspace-grid.is-with-assistant-and-relations {
+  grid-template-columns: minmax(0, 1fr) 300px 220px !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas,
+.app-shell.app-shell-v3[data-skin='friday'] .note-source-only,
+.app-shell.app-shell-v3[data-skin='friday'] .note-source-pane,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-editor-body {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 20px 36px 28px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-editor-body {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas textarea:focus,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas textarea:focus-visible,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-editor-body:focus,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-editor-body:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .editor-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-toolbar {
+  margin: 4px 0 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-toolbar button {
+  border: 0;
+  background: transparent;
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-toolbar button:hover {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace.is-browse-mode > .workspace-head {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-stage {
+  padding: 20px 24px 80px;
+  justify-items: stretch;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-stage > div:first-child p {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-stage h2 {
+  margin: 4px 0 18px;
+  color: var(--friday-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-doc-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-doc-card {
+  min-height: 0;
+  padding: 12px 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: center;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-doc-card b {
+  margin-top: 8px;
+  color: var(--friday-ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-doc-card small {
+  margin-top: 4px;
+  color: var(--friday-faint);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-doc-card:hover {
+  background: var(--friday-hover);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-pdf {
+  color: #f44336;
+  background: rgba(244, 67, 54, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-word {
+  color: #2196f3;
+  background: rgba(33, 150, 243, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-html {
+  color: #00bcd4;
+  background: rgba(0, 188, 212, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-epub {
+  color: #9c27b0;
+  background: rgba(156, 39, 176, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-markdown {
+  color: #4caf50;
+  background: rgba(76, 175, 80, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-doc {
+  color: #1560f7;
+  background: rgba(21, 96, 247, .12);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-workspace-head,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-eyebrow,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-heading p,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-feature-grid,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-side-note,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-card-icon,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-group-title {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-heading h1 {
+  margin: 8px 0 18px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-canvas {
+  max-width: 860px;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-heading h1 {
+  font-size: 28px;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-group {
+  overflow: hidden;
+  margin: 0 0 22px;
+  border-radius: 12px;
+  background: var(--friday-bg);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-group-title {
+  margin: 0 0 8px;
+  color: var(--friday-muted);
+  font-size: 12px;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-backup-card,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-provider-card,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-connection-card {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--friday-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-group > :last-child {
+  border-bottom: 0;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-density-options button.is-active,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-theme-options button.is-active {
+  color: var(--friday-paper);
+  background: var(--friday-ink);
+  border-color: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-problem-hint {
+  color: var(--friday-accent);
+  background: var(--friday-accent-soft);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-panel {
+  background: var(--friday-paper);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-panel header {
+  align-items: flex-start;
+  gap: 8px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-panel header > button {
+  flex: none;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-composer {
+  background: var(--friday-paper);
+  border-top-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-composer textarea {
+  border-color: var(--friday-line);
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-composer button {
+  color: var(--friday-paper);
+  background: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-msg.user {
+  color: var(--friday-paper);
+  background: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-card {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--friday-line);
+  border-radius: 14px;
+  background: var(--friday-bg);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-card > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--friday-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-card p {
+  margin: 0;
+  color: var(--friday-ink);
+  font-size: 15px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-selection-bubble {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--friday-line);
+  border-radius: 999px;
+  background: var(--friday-paper);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .12);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-selection-bubble button {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--friday-ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-selection-bubble button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .note-selection-bubble button.is-primary {
+  color: #fff;
+  background: var(--friday-accent);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-toolbar button {
+  border-color: var(--friday-line);
+  background: var(--friday-paper);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .editor-title {
+  color: var(--friday-ink);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .side-head-actions button {
+  background: transparent;
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .side-head-actions button:hover {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-tabs {
+  gap: 2px;
+  padding: 4px 12px 10px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-tabs button {
+  background: transparent;
+  color: var(--friday-muted);
+  font-weight: 500;
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-tabs button.active {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button,
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button.is-problem {
+  color: var(--friday-muted);
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button.active,
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button.is-problem.active {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-list b,
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button.is-problem b {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-list small {
+  color: var(--friday-faint);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .head-actions > button,
+.app-shell.app-shell-v3[data-skin='friday'] .note-preview-toggle,
+.app-shell.app-shell-v3[data-skin='friday'] .note-more-toggle {
+  border-color: transparent;
+  background: transparent;
+  color: var(--friday-muted);
+  box-shadow: none;
+  font-weight: 500;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-mode-switch {
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-mode-switch button {
+  background: transparent;
+  color: var(--friday-muted);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .head-actions > button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .note-preview-toggle:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .note-preview-toggle.is-active,
+.app-shell.app-shell-v3[data-skin='friday'] .note-more-toggle:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .note-more-toggle.is-active,
+.app-shell.app-shell-v3[data-skin='friday'] .note-mode-switch button.active {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  box-shadow: none;
+  border-color: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .editor-tags,
+.app-shell.app-shell-v3[data-skin='friday'] .editor-body,
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-editor textarea,
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-editor span {
+  color: var(--friday-muted);
+  background: transparent;
+  border-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-editor textarea {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-actions button,
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-writeback button,
+.app-shell.app-shell-v3[data-skin='friday'] .note-assistant-msg.assistant,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-note-preview,
+.app-shell.app-shell-v3[data-skin='friday'] .note-more-menu,
+.app-shell.app-shell-v3[data-skin='friday'] .note-wiki-suggest {
+  background: var(--friday-paper);
+  color: var(--friday-ink);
+  border-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-qa-card p {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .search-box {
+  background: var(--friday-hover);
+  border-color: transparent;
+}
+html[data-theme-resolved='dark'] *,
+html[data-theme='dark'] * {
+  scrollbar-color: #3a3a40 transparent;
+}
+html[data-theme-resolved='dark'] ::-webkit-scrollbar-thumb,
+html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #3a3a40;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .document-reader,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas {
+  background: var(--friday-paper);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .side-head {
+  height: 56px;
+  padding: 10px 16px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .side-head > div > span {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-problem-hint {
+  margin: 0 0 12px;
+  color: var(--friday-muted);
+  font-size: 13px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  justify-content: space-between;
+  border-bottom-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .workspace-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace.is-browse-mode .workspace-body {
+  padding-bottom: 24px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace.is-browse-mode .composer-area {
+  display: none !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-chat-canvas {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-chat-canvas > .side-panel {
+  display: none !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-toolbar {
+  display: flex;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse .document-section {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-list > button > svg {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .editor-tags {
+  color: var(--friday-faint);
+  font-size: 13px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-more,
+.app-shell.app-shell-v3[data-skin='friday'] .library-index-dot {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .search-box:focus-within,
+.app-shell.app-shell-v3[data-skin='friday'] .search-box input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace.is-browse-mode .messages {
+  padding: 16px 20px 8px;
+  overflow: auto;
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .pdf-toolbar,
+.app-shell.app-shell-v3[data-skin='friday'] .image-ocr-toolbar {
+  border-color: var(--friday-line);
+  background: var(--friday-paper);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-toolbar {
+  min-height: 52px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom-color: var(--friday-line);
+  background: var(--friday-paper);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-source {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--friday-faint);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-actions .content-reader-action:not(.content-reader-ask) {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  font-size: 0;
+  gap: 0;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-markdown {
+  width: min(100% - 64px, 800px);
+  padding: 40px 0 80px;
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-outline {
+  background: var(--friday-paper);
+  border-right-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-conversation,
+.app-shell.app-shell-v3[data-skin='friday'] .content-reader-interpretation {
+  background: var(--friday-paper);
+  border-left-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas {
+  padding: 20px clamp(20px, 5vw, 64px) 36px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .editor-title,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .editor-tags,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .markdown-toolbar,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .note-source-only,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .note-split-editor,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .markdown-note-preview {
+  width: min(720px, 100%) !important;
+  max-width: 720px !important;
+  margin-left: auto;
+  margin-right: auto;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .editor-tags:placeholder-shown:not(:focus) {
+  opacity: .4;
+}
+
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large,
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large .unified-workspace-ask-search,
+.unified-workspace[data-skin='friday'] .unified-workspace-home-actions button {
+  color: var(--friday-muted);
+  background: var(--friday-paper);
+  border-color: var(--friday-line);
+  box-shadow: none;
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large {
+  box-shadow: var(--friday-shadow);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large textarea,
+.unified-workspace[data-skin='friday'] .unified-workspace-hero-clean h1,
+.unified-workspace[data-skin='friday'] .unified-workspace-hero-clean .unified-workspace-hero-brand b,
+.unified-workspace[data-skin='friday'] .unified-workspace-hero-clean .unified-workspace-hero-brand,
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-compact .section-toggle,
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-compact .section-toggle h2 {
+  color: var(--friday-ink);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large textarea::placeholder {
+  color: var(--friday-faint);
+}
+.unified-workspace[data-skin='friday'] .unified-workspace-home-actions button:hover,
+.unified-workspace[data-skin='friday'] .unified-workspace-ask-large .unified-workspace-ask-search:hover:not(:disabled),
+.unified-workspace[data-skin='friday'] .unified-workspace-recent-compact .section-toggle:hover {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+  border-color: var(--friday-line);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .workspace,
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-head,
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame,
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-body,
+.app-shell.app-shell-v3[data-skin='friday'] .messages,
+.app-shell.app-shell-v3[data-skin='friday'] .composer-area,
+.app-shell.app-shell-v3[data-skin='friday'] .composer,
+.app-shell.app-shell-v3[data-skin='friday'] .document-reader,
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace {
+  background: var(--friday-paper);
+  color: var(--friday-ink);
+  border-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .messages {
+  background: var(--friday-paper);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .composer {
+  background: var(--friday-paper);
+  box-shadow: var(--friday-shadow);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .composer textarea,
+.app-shell.app-shell-v3[data-skin='friday'] .search-box input,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer,
+.app-shell.app-shell-v3[data-skin='friday'] .bubble {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .composer-mode-switch,
+.app-shell.app-shell-v3[data-skin='friday'] .library-filter,
+.app-shell.app-shell-v3[data-skin='friday'] .chat-welcome,
+.app-shell.app-shell-v3[data-skin='friday'] .task-starters {
+  background: transparent;
+  border-color: var(--friday-line);
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .composer-mode-switch button.is-active,
+.app-shell.app-shell-v3[data-skin='friday'] .library-filter button.active {
+  color: var(--friday-ink);
+  background: var(--friday-paper);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer code,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer th {
+  background: var(--friday-bg);
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer pre {
+  background: var(--friday-ink);
+  color: var(--friday-paper);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer th,
+.app-shell.app-shell-v3[data-skin='friday'] .markdown-answer td {
+  border-color: var(--friday-line);
+}
+
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-pdf,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-pdf {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, .16);
+}
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-word,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-word {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, .16);
+}
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-html,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-html {
+  color: #5eead4;
+  background: rgba(20, 184, 166, .16);
+}
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-epub,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-epub {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, .16);
+}
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-markdown,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-markdown {
+  color: #86efac;
+  background: rgba(34, 197, 94, .16);
+}
+html[data-theme-resolved='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-doc,
+html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-file-badge.is-doc {
+  color: #93c5fd;
+  background: rgba(37, 99, 235, .18);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .tag-filter {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse .side-head h2 {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse .side-head {
+  height: 48px;
+  min-height: 48px;
+  padding: 8px 10px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse .search-box {
+  height: 36px;
+  margin: 0 10px 8px;
+  border: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .workspace-tab-frame.is-library-browse .search-box:focus-within {
+  background: var(--friday-hover);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-filter {
+  gap: 2px;
+  margin: 0 8px 8px;
+  padding: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-filter button {
+  background: transparent;
+  color: var(--friday-muted);
+  box-shadow: none;
+  font-weight: 500;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-filter button.active {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-follow,
+.app-shell.app-shell-v3[data-skin='friday'] .kb-follow.active {
+  color: var(--friday-muted);
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-follow.active {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row.active,
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row:hover {
+  background: var(--friday-hover);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row b {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-row small,
+.app-shell.app-shell-v3[data-skin='friday'] .section-label {
+  color: var(--friday-faint);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .kb-icon {
+  color: var(--friday-accent);
+  background: var(--friday-accent-soft);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-skills {
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-bound-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-bound-skills > button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+  font-size: 12px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-skills-picker,
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-demo-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-skills-picker > summary,
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-demo-skills > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--friday-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-skills-picker > button,
+.app-shell.app-shell-v3[data-skin='friday'] .copilot-demo-skills > button {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--friday-line);
+  border-radius: 10px;
+  background: var(--friday-paper);
+  box-shadow: none;
+  color: var(--friday-ink);
+  text-align: left;
+  transform: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .primary-inline {
+  color: var(--friday-paper) !important;
+  background: var(--friday-ink) !important;
+  border-color: var(--friday-ink) !important;
+  box-shadow: none !important;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-workspace > .workspace-head .head-actions > button:not(.primary-inline) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--friday-muted);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-sidebar,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-workspace {
+  background: var(--friday-paper);
+  color: var(--friday-ink);
+  border-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-side-head {
+  min-height: 48px;
+  padding: 10px 16px;
+  border-bottom-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-side-head h2,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-heading h1 {
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-nav button {
+  min-height: 44px;
+  border-radius: 10px;
+  color: var(--friday-muted);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-nav button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-nav button.is-active {
+  color: var(--friday-ink);
+  background: var(--friday-hover);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-nav-icon {
+  background: var(--friday-hover);
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-provider-card,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-connection-card,
+.app-shell.app-shell-v3[data-skin='friday'] .settings-experience-index-card {
+  background: transparent;
+  border-color: var(--friday-line);
+  box-shadow: none;
+  color: var(--friday-ink);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) > .workspace-head {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 16px;
+  background: transparent;
+  border-bottom-color: var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) .workspace-title .ai-avatar {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) .head-actions > button,
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) .copilot-chip {
+  border-color: transparent;
+  background: transparent;
+  color: var(--friday-muted);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) .head-actions > button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .chat-workspace:not(.is-browse-mode) .head-actions > button.active {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+}
+
+.app-shell.app-shell-v3[data-skin='friday'] .note-side {
+  background: var(--friday-paper);
+  border-right: 1px solid var(--friday-line);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .side-head {
+  height: 48px;
+  min-height: 48px;
+  padding: 8px 10px;
+  justify-content: space-between;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .side-head h2 {
+  display: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-search-toggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--friday-ink);
+  cursor: pointer;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-search-toggle:hover {
+  background: var(--friday-hover);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .search-box {
+  height: 36px;
+  margin: 0 8px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .search-box:focus-within {
+  background: var(--friday-hover);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .search-box input {
+  color: var(--friday-ink);
+  font-size: 14px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .note-kind-tabs {
+  justify-content: flex-start;
+  gap: 2px;
+  margin: 0;
+  padding: 2px 10px 10px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .note-kind-tabs button {
+  flex: none;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list {
+  padding: 0 0 12px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button,
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button.is-problem {
+  min-height: 0;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button:hover,
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button.active,
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button.is-problem.active {
+  background: var(--friday-active);
+  border-left-color: var(--friday-ink);
+  box-shadow: none;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list b,
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list > button.is-problem b {
+  color: var(--friday-ink);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-side .module-list small {
+  margin-top: 1px;
+  color: var(--friday-faint);
+  font-size: 11px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 18px 0 8px;
+  border-bottom: 0;
+  background: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar .workspace-title small {
+  color: var(--friday-faint);
+  font-size: 11px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar .note-mode-switch button,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar .note-preview-toggle {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 0;
+  gap: 0;
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar .note-mode-switch button svg,
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-toolbar .note-preview-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas {
+  padding: 8px clamp(28px, 7vw, 72px) 48px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .editor-title {
+  margin: 8px 0 6px;
+  color: var(--friday-ink);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1.2;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .editor-tags:placeholder-shown:not(:focus) {
+  height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas:hover > .editor-tags:placeholder-shown:not(:focus) {
+  height: auto;
+  padding: 0 0 10px;
+  opacity: .4;
+  pointer-events: auto;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .markdown-toolbar {
+  margin: 0 0 8px;
+  padding: 4px 0;
+  border-bottom-color: transparent;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .markdown-toolbar button {
+  min-width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--friday-muted);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .note-editor-canvas > .markdown-toolbar button:hover {
+  background: var(--friday-hover);
+  color: var(--friday-ink);
+}
+
+@media (max-width: 820px) {
+  .unified-workspace[data-skin='friday'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: 54px minmax(0, 1fr);
+  }
+  .unified-workspace[data-skin='friday'] .unified-workspace-topbar {
+    width: 100%;
+    height: 54px;
+    flex-direction: row;
+    padding: 0 8px;
+  }
+  .unified-workspace[data-skin='friday'] .unified-workspace-primary-nav {
+    flex-direction: row;
+    justify-content: center;
+  }
+}

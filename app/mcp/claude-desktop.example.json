@@ -1,0 +1,12 @@
+﻿{
+  "mcpServers": {
+    "flowmind-feishu": {
+      "command": "node",
+      "args": ["D:\\luxiaofei\\ima-feishu\\app\\mcp\\server.mjs"],
+      "env": {
+        "FLOWMIND_STATE_FILE": "D:\\luxiaofei\\ima-feishu\\runtime-data\\state.json",
+        "FLOWMIND_API_URL": "http://127.0.0.1:8789"
+      }
+    }
+  }
+}

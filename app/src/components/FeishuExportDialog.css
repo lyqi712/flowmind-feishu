@@ -1,0 +1,130 @@
+.feishu-export-dialog {
+  width: 90%;
+  max-width: 500px;
+}
+
+.feishu-export-dialog .form-group {
+  margin-bottom: 20px;
+}
+
+.feishu-export-dialog label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #2B1D14;
+}
+
+.feishu-export-dialog input,
+.feishu-export-dialog select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.feishu-export-dialog input:focus,
+.feishu-export-dialog select:focus {
+  outline: none;
+  border-color: #B96420;
+}
+
+.feishu-export-dialog input:disabled,
+.feishu-export-dialog select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.loading-folders,
+.no-folders {
+  padding: 10px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.no-folders.is-blocked {
+  color: #8a4b2a;
+  background: #fdf6f0;
+  border: 1px solid #f0d7c4;
+  border-radius: 8px;
+}
+.folder-connect {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #b96420;
+  color: #fff;
+  font-size: 13px;
+}
+
+.content-preview {
+  margin-top: 20px;
+}
+
+.preview-box {
+  padding: 12px;
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #444;
+  white-space: pre-wrap;
+}
+
+.export-success {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 20px;
+  background: #4CAF50;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.export-success h3 {
+  margin: 0 0 10px;
+  color: #2B1D14;
+}
+
+.export-success p {
+  margin: 0 0 20px;
+  color: #666;
+}
+
+.export-success .btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: #B96420;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.export-success .btn:hover {
+  background: #A55A1C;
+}
+
+.error-message {
+  margin-top: 15px;
+  padding: 10px;
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  border-radius: 4px;
+  color: #c62828;
+  font-size: 14px;
+}

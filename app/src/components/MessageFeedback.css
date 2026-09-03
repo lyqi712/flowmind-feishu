@@ -1,0 +1,311 @@
+/* 用户反馈样式 */
+
+.message-feedback {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gray-100, #f5f5f5);
+}
+
+.message-feedback.submitted {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success, #10b981);
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border-radius: 6px;
+}
+
+/* 反馈按钮 */
+.feedback-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.feedback-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1px solid var(--gray-200, #e5e5e5);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.feedback-btn:hover {
+  border-color: var(--gray-300, #d4d4d4);
+  background: var(--gray-50, #fafafa);
+}
+
+.feedback-btn.positive:hover {
+  border-color: var(--success, #10b981);
+  color: var(--success, #10b981);
+  background: #f0fdf4;
+}
+
+.feedback-btn.negative:hover {
+  border-color: var(--error, #ef4444);
+  color: var(--error, #ef4444);
+  background: #fef2f2;
+}
+
+/* 详细反馈表单 */
+.feedback-detail {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--gray-50, #fafafa);
+  border-radius: 8px;
+  animation: fade-in 200ms ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-900, #171717);
+}
+
+/* 问题选项 */
+.issue-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.issue-options label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--gray-200, #e5e5e5);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.issue-options label:hover {
+  border-color: var(--primary-300, #93c5fd);
+  background: var(--primary-50, #eff6ff);
+}
+
+.issue-options label.selected {
+  border-color: var(--primary-600, #2563eb);
+  background: var(--primary-50, #eff6ff);
+}
+
+.issue-options label input[type="radio"] {
+  display: none;
+}
+
+.issue-options label > span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-900, #171717);
+}
+
+.issue-options label small {
+  font-size: 12px;
+  color: var(--gray-600, #525252);
+}
+
+/* 评论框 */
+.feedback-comment {
+  width: 100%;
+  padding: 8px;
+  font-size: 13px;
+  border: 1px solid var(--gray-200, #e5e5e5);
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+
+.feedback-comment:focus {
+  outline: none;
+  border-color: var(--primary-500, #3b82f6);
+  box-shadow: 0 0 0 3px var(--primary-50, #eff6ff);
+}
+
+/* 操作按钮 */
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-cancel {
+  border: 1px solid var(--gray-200, #e5e5e5);
+  background: white;
+  color: var(--gray-700, #404040);
+}
+
+.btn-cancel:hover {
+  background: var(--gray-50, #fafafa);
+}
+
+.btn-submit {
+  border: none;
+  background: var(--primary-600, #2563eb);
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: var(--primary-700, #1d4ed8);
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 反馈仪表板 */
+.feedback-dashboard {
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.feedback-dashboard h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-900, #171717);
+}
+
+.feedback-dashboard h4 {
+  margin: 20px 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700, #404040);
+}
+
+.feedback-dashboard.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--gray-500, #737373);
+}
+
+/* 统计卡片网格 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  padding: 16px;
+  background: var(--gray-50, #fafafa);
+  border: 1px solid var(--gray-200, #e5e5e5);
+  border-radius: 8px;
+}
+
+.stat-card.positive {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.stat-card.negative {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.stat-card.satisfaction.good {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.stat-card.satisfaction.medium {
+  background: #fffbeb;
+  border-color: #fde047;
+}
+
+.stat-card.satisfaction.low {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gray-900, #171717);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--gray-600, #525252);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 问题分布列表 */
+.issues-breakdown {
+  padding: 16px;
+  background: var(--gray-50, #fafafa);
+  border-radius: 8px;
+}
+
+.issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.issue-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.issue-item span:first-child {
+  color: var(--gray-700, #404040);
+}
+
+.issue-count {
+  font-weight: 600;
+  color: var(--gray-900, #171717);
+  background: var(--gray-100, #f5f5f5);
+  padding: 2px 8px;
+  border-radius: 12px;
+}

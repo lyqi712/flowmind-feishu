@@ -1,0 +1,237 @@
+/* 引用可视化样式 */
+
+.citation-link {
+  position: relative;
+  display: inline-block;
+  color: var(--primary-600, #2563eb);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 3px;
+  transition: all 150ms ease;
+}
+
+.citation-link:hover {
+  background: var(--primary-50, #eff6ff);
+  color: var(--primary-700, #1d4ed8);
+}
+
+.citation-link.broken {
+  color: var(--error, #ef4444);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* 引用预览弹窗 */
+.citation-preview {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  max-width: 90vw;
+  padding: 12px;
+  background: white;
+  border: 1px solid var(--gray-200, #e5e5e5);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  z-index: 1000;
+  animation: citation-fade-in 200ms ease;
+}
+
+@keyframes citation-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 三角箭头 */
+.citation-preview::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 6px 0 6px;
+  border-color: white transparent transparent transparent;
+}
+
+.citation-preview::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 7px 7px 0 7px;
+  border-color: var(--gray-200, #e5e5e5) transparent transparent transparent;
+  z-index: -1;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.preview-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900, #171717);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-anchor {
+  font-size: 11px;
+  color: var(--gray-500, #737373);
+  background: var(--gray-100, #f5f5f5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.preview-excerpt {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gray-700, #404040);
+  margin: 0 0 10px 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-100, #f5f5f5);
+}
+
+.preview-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-600, #2563eb);
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.preview-action:hover {
+  background: var(--primary-50, #eff6ff);
+}
+
+.preview-hint {
+  font-size: 11px;
+  color: var(--gray-400, #a3a3a3);
+}
+
+/* 引用覆盖率 */
+.citation-coverage {
+  margin: 16px 0;
+  padding: 12px;
+  background: var(--gray-50, #fafafa);
+  border-radius: 8px;
+}
+
+.citation-coverage.good {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.citation-coverage.medium {
+  background: #fffbeb;
+  border: 1px solid #fde047;
+}
+
+.citation-coverage.low {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
+.coverage-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200, #e5e5e5);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.coverage-fill {
+  height: 100%;
+  background: var(--primary-600, #2563eb);
+  transition: width 300ms ease;
+}
+
+.citation-coverage.good .coverage-fill {
+  background: #22c55e;
+}
+
+.citation-coverage.medium .coverage-fill {
+  background: #eab308;
+}
+
+.citation-coverage.low .coverage-fill {
+  background: #ef4444;
+}
+
+.coverage-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.coverage-percent {
+  font-weight: 600;
+  color: var(--gray-900, #171717);
+}
+
+.coverage-detail {
+  color: var(--gray-600, #525252);
+}
+
+.coverage-details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.coverage-details summary {
+  cursor: pointer;
+  color: var(--gray-600, #525252);
+  user-select: none;
+}
+
+.coverage-details summary:hover {
+  color: var(--gray-900, #171717);
+}
+
+.coverage-details ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.coverage-details li {
+  margin: 4px 0;
+  color: var(--gray-700, #404040);
+}

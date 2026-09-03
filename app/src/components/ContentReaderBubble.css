@@ -1,0 +1,79 @@
+/* 气泡式对话UI */
+
+.content-reader-conversation-bubble {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  align-items: flex-start;
+}
+
+.content-reader-conversation-bubble.is-user {
+  flex-direction: row-reverse;
+}
+
+.content-reader-conversation-bubble .message-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #d97757, #a84a2b);
+}
+
+.content-reader-conversation-bubble .message-content {
+  flex: 1;
+  min-width: 0;
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.04);
+  color: rgba(0,0,0,.84);
+}
+
+.content-reader-conversation-bubble.is-user .message-content {
+  background: #e8f3ff;
+  color: rgba(0,0,0,.88);
+  margin-left: auto;
+}
+
+.content-reader-conversation-bubble .message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.content-reader-conversation-bubble .message-header b {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0,0,0,.68);
+}
+
+.content-reader-conversation-bubble .message-header small {
+  font-size: 11px;
+  color: rgba(0,0,0,.48);
+}
+
+.content-reader-conversation-bubble .message-text {
+  margin: 0;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.content-reader-conversation-bubble .content-reader-conversation-markdown {
+  line-height: 1.6;
+}
+
+.content-reader-conversation-bubble .content-reader-conversation-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0,0,0,.08);
+}
+
+@media(max-width: 820px) {
+  .content-reader-conversation-bubble .message-content {
+    max-width: 90%;
+  }
+}
