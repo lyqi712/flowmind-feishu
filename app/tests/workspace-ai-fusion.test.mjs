@@ -140,6 +140,19 @@ test('空对话先给 Copilot 开场，不让智能首页把提问入口挤掉',
   assert.match(mainSource, /<MessageFeedback conversationId=\{message.conversationId \|\| conversationId\}/);
 });
 
+test('斜杠菜单只留提问相关动作，录音写作进对话更多', () => {
+  assert.match(mainSource, /id: 'action-add-file'/);
+  assert.match(mainSource, /id: 'action-problem-note'/);
+  assert.match(mainSource, /id: 'action-analysis'/);
+  assert.match(mainSource, /id: 'action-new-chat'/);
+  assert.doesNotMatch(mainSource, /id: 'action-recording'/);
+  assert.doesNotMatch(mainSource, /id: 'action-evidence'/);
+  assert.doesNotMatch(mainSource, /id: 'action-writing'/);
+  assert.match(mainSource, />录音纪要</);
+  assert.match(mainSource, />写作草稿</);
+  assert.match(mainSource, /onCreateProblemNote=\{handleWorkspaceCreateProblemNote\}/);
+});
+
 test('Copilot 配置能绑定知识库、开场问题，并回到问答使用', () => {
   assert.match(copilotSource, /绑定知识库/);
   assert.match(copilotSource, /开场问题/);

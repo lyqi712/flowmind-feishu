@@ -21,13 +21,10 @@
     "@napi-rs/canvas": "1.0.3",
     "@tesseract.js-data/chi_sim": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
-    "@vitejs/plugin-react": "6.0.5",
-    "concurrently": "10.0.4",
     "express": "5.2.1",
     "graphology": "0.26.0",
     "lucide-react": "1.28.0",
     "pdfjs-dist": "6.1.200",
-    "preact": "^10.29.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "^10.1.0",
@@ -35,13 +32,15 @@
     "remark-gfm": "^4.0.1",
     "sigma": "3.0.2",
     "tesseract.js": "7.0.0",
-    "vite": "8.2.0",
     "zod": "4.4.3"
   },
   "main": "desktop/bootstrap.cjs",
   "devDependencies": {
+    "@vitejs/plugin-react": "6.0.5",
+    "concurrently": "10.0.4",
     "electron": "43.2.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "vite": "8.2.0"
   },
   "description": "飞书知识库 AI 助手：同步、检索问答、引用溯源与可组合 Skill 工作流",
   "author": "FlowMind",

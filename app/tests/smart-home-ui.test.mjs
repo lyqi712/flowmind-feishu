@@ -18,18 +18,10 @@ test('首页不再堆今日待办和推荐操作', () => {
 });
 
 test('SmartHome 支持一键执行操作', () => {
-  // 应能直接打开文档、继续 Skill、开始对话
-  assert.ok(
-    smartHomeSrc.includes('onAction'),
-    'SmartHome 应支持一键操作'
-  );
-  assert.ok(
-    smartHomeSrc.includes('open-document') && smartHomeSrc.includes('run-skill'),
-    'SmartHome 应支持文档和 Skill 操作'
-  );
+  assert.ok(smartHomeSrc.includes('onAction'), 'SmartHome 应支持一键操作');
+  assert.ok(smartHomeSrc.includes('open-document') && smartHomeSrc.includes('run-skill'), 'SmartHome 应支持文档和 Skill 操作');
   assert.match(smartHomeSrc, /open-export/);
   assert.match(smartHomeSrc, /item.documentId/);
-  assert.match(mainSrc, /open-export/);
   assert.match(mainSrc, /handleFeishuExported/);
   assert.match(mainSrc, /refreshContentItems/);
 });

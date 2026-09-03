@@ -111,13 +111,13 @@
 }
 
 .issue-options label:hover {
-  border-color: var(--primary-300, #93c5fd);
-  background: var(--primary-50, #eff6ff);
+  border-color: #e4c9ba;
+  background: #fdfbfa;
 }
 
 .issue-options label.selected {
-  border-color: var(--primary-600, #2563eb);
-  background: var(--primary-50, #eff6ff);
+  border-color: #c16c4e;
+  background: #faf4ee;
 }
 
 .issue-options label input[type="radio"] {
@@ -149,8 +149,8 @@
 
 .feedback-comment:focus {
   outline: none;
-  border-color: var(--primary-500, #3b82f6);
-  box-shadow: 0 0 0 3px var(--primary-50, #eff6ff);
+  border-color: #c16c4e;
+  box-shadow: 0 0 0 3px rgba(193, 108, 78, .12);
 }
 
 /* 操作按钮 */
@@ -182,12 +182,12 @@
 
 .btn-submit {
   border: none;
-  background: var(--primary-600, #2563eb);
+  background: #c16c4e;
   color: white;
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: var(--primary-700, #1d4ed8);
+  background: #b46346;
 }
 
 .btn-submit:disabled {

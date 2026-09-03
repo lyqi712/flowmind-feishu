@@ -265,4 +265,19 @@ test('主问答反馈不弹系统框，缺类型时在页面里提示', async ()
   assert.doesNotMatch(desktop, /luxiaofei/);
 });
 
+test('构建工具不进生产依赖，对话正文按阅读字号', async () => {
+  const { readFileSync } = await import('node:fs');
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const friday = readFileSync(new URL('../src/components/FridaySkin.css', import.meta.url), 'utf8');
+  const reader = readFileSync(new URL('../src/components/ContentReader.css', import.meta.url), 'utf8');
+  const feedback = readFileSync(new URL('../src/components/MessageFeedback.css', import.meta.url), 'utf8');
+  assert.equal(pkg.dependencies.vite, undefined);
+  assert.equal(pkg.dependencies.concurrently, undefined);
+  assert.equal(pkg.dependencies.preact, undefined);
+  assert.equal(pkg.devDependencies.vite, '8.2.0');
+  assert.match(friday, /\.markdown-answer,[\s\S]*?font-size: 15px/);
+  assert.match(reader, /content-reader-conversation-markdown\{[^}]*font-size:15px/);
+  assert.doesNotMatch(feedback, /#2563eb/);
+});
+
 console.log('✓ 所有引用和反馈功能测试通过');

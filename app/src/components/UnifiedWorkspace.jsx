@@ -411,7 +411,7 @@ function AIContextPanel({ open, context, onClose, onRemoveContext, onClearSelect
         {snapshot.selection && <ContextChip kind="selection" title="当前选区" detail={snapshot.selection.text || snapshot.selection.content || ''} onRemove={() => onClearSelection?.()} />}
         {scopedResources.map((resource, index) => <ContextChip key={resource.id || index} kind="resource" title={resource.title || resource.name || '附加资料'} detail={resource.type || resource.source} onRemove={resource.removable === false ? undefined : () => onRemoveContext?.(resource)} />)}
         <button type="button" className="unified-workspace-add-context" onClick={onAttachContext}><Plus size={14} aria-hidden="true" />附加材料</button>
-        <div className="unified-workspace-context-artifacts"><button type="button" disabled={!hasContext} onClick={() => onCreateNote?.(snapshot)}><StickyNote size={14} aria-hidden="true" />{'\u521b\u5efa\u7b14\u8bb0'}</button><button type="button" disabled={!hasContext} onClick={() => onCreateWriting?.(snapshot)}><FilePenLine size={14} aria-hidden="true" />{'\u521b\u5efa\u5199\u4f5c\u8349\u7a3f'}</button></div>
+        <div className="unified-workspace-context-artifacts"><button type="button" disabled={!hasContext} onClick={() => onCreateNote?.(snapshot)}><StickyNote size={14} aria-hidden="true" />创建笔记</button><button type="button" disabled={!hasContext} onClick={() => onCreateWriting?.(snapshot)}><FilePenLine size={14} aria-hidden="true" />创建写作草稿</button></div>
       </div>
       <form className="unified-workspace-context-composer" onSubmit={submit}>
         <textarea name="context-question" value={question} onChange={event => setQuestion(event.target.value)} placeholder="基于这些材料提问…" aria-label="基于上下文提问" rows={3} />
