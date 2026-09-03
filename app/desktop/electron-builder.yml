@@ -23,12 +23,16 @@ files:
   - package.json
   - '!desktop/out/**/*'
   - '!desktop/out-*/**/*'
+  - '!tests/**/*'
+  - '!**/*.map'
 
 asarUnpack:
   - '**/*.node'
   - node_modules/@napi-rs/**/*
   - node_modules/tesseract.js/**/*
+  - node_modules/tesseract.js-core/**/*
   - node_modules/@tesseract.js-data/**/*
+  - mcp/**/*
 
 win:
   executableName: FlowMind
@@ -38,10 +42,7 @@ win:
     - target: nsis
       arch:
         - x64
-    - target: zip
-      arch:
-        - x64
-  artifactName: '${productName}-${version}-${arch}.${ext}'
+  artifactName: 'FlowMind-Setup-${version}-${arch}.${ext}'
   forceCodeSigning: false
 
 nsis:
@@ -54,3 +55,7 @@ nsis:
   shortcutName: FlowMind 飞书 AI 工作台
   deleteAppDataOnUninstall: false
   runAfterFinish: true
+  installerLanguages:
+    - zh_CN
+    - en_US
+  displayLanguageSelector: false

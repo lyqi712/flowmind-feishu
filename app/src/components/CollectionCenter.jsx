@@ -201,20 +201,15 @@ export function CollectionCenter({ open = true, onClose, onOpenFeishu, onImportF
         <header className="collection-center-header">
           <div className="collection-center-heading">
             <span className="collection-center-brand" aria-hidden="true"><Sparkles size={20}/></span>
-            <div><p className="collection-center-eyebrow">第一次用，按这个顺序</p><h2 id={titleId}>把内容放进 FlowMind</h2><p id={descriptionId}>先同步飞书或拖文件，再回首页提问。导入后立刻能搜、能问。</p></div>
+            <div><p className="collection-center-eyebrow">收集</p><h2 id={titleId}>把材料放进知识库</h2><p id={descriptionId}>选一种方式即可。导入后立刻能搜、能问。</p></div>
           </div>
           <button ref={closeButtonRef} type="button" className="collection-center-close" aria-label="关闭收集中心" onClick={onClose}><X size={20}/></button>
         </header>
 
-        <ol className="collection-onboarding" data-onboarding="import">
-          <li><b>1. 飞书</b><span>点「打开飞书导入」，按向导开通机器人权限后粘贴文档链接。</span></li>
-          <li><b>2. 本地文件</b><span>把 PDF、Word、图片拖进下面的虚线框，导入后就能提问。</span></li>
-          <li><b>3. 网页或随手记</b><span>打开网页剪藏，或把一段文字收进来。</span></li>
-        </ol>
-        <div className="collection-center-grid">
+        <div className="collection-center-grid" data-onboarding="import">
           <article className="collection-entry collection-entry-feishu">
             <div className="collection-entry-icon" aria-hidden="true"><Link2 size={22}/></div>
-            <div className="collection-entry-copy"><span className="collection-entry-kicker">飞书内容</span><h3>链接与知识空间</h3><p>粘贴飞书文档链接，或连接知识空间后批量同步。</p></div>
+            <div className="collection-entry-copy"><span className="collection-entry-kicker">1 · 飞书</span><h3>链接与知识空间</h3><p>按向导开通只读权限，再粘贴文档或知识库链接。</p></div>
             <button type="button" className="collection-primary-button" onClick={handleFeishu} disabled={feishuBusy || typeof onOpenFeishu !== 'function'} aria-busy={feishuBusy}>
               {feishuBusy ? <LoaderCircle className="collection-spin" size={17}/> : <FolderOpen size={17}/>}
               {feishuBusy ? '正在打开…' : '打开飞书导入'}{!feishuBusy && <ArrowRight size={16}/>}
@@ -224,7 +219,7 @@ export function CollectionCenter({ open = true, onClose, onOpenFeishu, onImportF
           <article className="collection-entry collection-entry-files">
             <div className="collection-entry-title-row">
               <div className="collection-entry-icon" aria-hidden="true"><Upload size={22}/></div>
-              <div className="collection-entry-copy"><span className="collection-entry-kicker">本地资料</span><h3>拖放或选择文件</h3><p>支持一次选择多个文件，选择后立即开始导入。</p></div>
+              <div className="collection-entry-copy"><span className="collection-entry-kicker">2 · 本地文件</span><h3>拖放或选择文件</h3><p>PDF、Word、图片都可以，导入后就能提问。</p></div>
             </div>
             <div className={`collection-dropzone${dragging ? ' is-dragging' : ''}${fileBusy ? ' is-busy' : ''}`}
               onDragEnter={event => { event.preventDefault(); setDragging(true); }}
@@ -244,7 +239,7 @@ export function CollectionCenter({ open = true, onClose, onOpenFeishu, onImportF
 
           <article className="collection-entry collection-entry-web">
             <div className="collection-entry-icon" aria-hidden="true"><Globe size={22}/></div>
-            <div className="collection-entry-copy"><span className="collection-entry-kicker">网页</span><h3>在工作台打开</h3><p>内嵌浏览后，把容易忘的点剪进问题记录。</p></div>
+            <div className="collection-entry-copy"><span className="collection-entry-kicker">3 · 网页</span><h3>打开后剪藏</h3><p>浏览页面，把容易忘的点收进笔记。</p></div>
             <form className="collection-web-form" onSubmit={handleOpenWeb}>
               <input value={webUrl} onChange={event => setWebUrl(event.target.value)} placeholder="https://example.com" aria-label="网页地址" autoComplete="off"/>
               <button type="submit" className="collection-primary-button" disabled={!webUrl.trim() || typeof onOpenWeb !== 'function'}>打开网页<ArrowRight size={16}/></button>
@@ -254,7 +249,7 @@ export function CollectionCenter({ open = true, onClose, onOpenFeishu, onImportF
           <article className="collection-entry collection-entry-text">
             <div className="collection-entry-title-row">
               <div className="collection-entry-icon" aria-hidden="true"><FileText size={22}/></div>
-              <div className="collection-entry-copy"><span className="collection-entry-kicker">随手记</span><h3>快速文本</h3><p>把灵感、会议记录或待整理内容直接收进知识库。</p></div>
+              <div className="collection-entry-copy"><span className="collection-entry-kicker">4 · 随手记</span><h3>快速文本</h3><p>会议要点或待整理内容，直接收进知识库。</p></div>
             </div>
             <form className="collection-text-form" onSubmit={handleTextSubmit}>
               <label><span>标题</span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="例如：项目复盘要点" disabled={textBusy} autoComplete="off"/></label>

@@ -11,6 +11,7 @@ import { EMPTY_RETRIEVAL_ANSWER } from '../server/retrieval-policy.mjs';
 import { AgentRuntime } from '../server/agent/runtime.mjs';
 import { ToolRegistry } from '../server/agent/tool-registry.mjs';
 import { JsonStateStore } from '../server/state-store.mjs';
+import { isMcpStdioArgv } from '../desktop/mcp-stdio.mjs';
 
 const wizard = readFileSync(new URL('../src/components/FeishuSyncWizard.jsx', import.meta.url), 'utf8');
 const feishuSetup = readFileSync(new URL('../src/workspace/feishu-setup.js', import.meta.url), 'utf8');
@@ -19,6 +20,8 @@ const settings = readFileSync(new URL('../src/components/SettingsExperience.jsx'
 const notes = readFileSync(new URL('../src/components/NotesWorkspace.jsx', import.meta.url), 'utf8');
 const home = readFileSync(new URL('../src/components/UnifiedWorkspace.jsx', import.meta.url), 'utf8');
 const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const builder = readFileSync(new URL('../desktop/electron-builder.yml', import.meta.url), 'utf8');
+const desktopMain = readFileSync(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
 
 test('MCP connect kit is a copy-paste prompt other AIs can follow without guessing paths', () => {
   const kit = buildMcpConnectKit({
@@ -44,6 +47,24 @@ test('飞书向导和收集入口给出第一次就能跟着做的步骤', () =>
   assert.match(collection, /打开飞书导入/);
   assert.match(home, /data-onboarding="home"/);
   assert.match(home, /开始收集/);
+  assert.match(main, /data-onboarding="knowledge"/);
+  assert.match(main, /导入文件/);
+  assert.match(main, /连接飞书/);
+  assert.doesNotMatch(main, /function SyncModal/);
+  assert.match(builder, /node_modules\/tesseract\.js-core\/\*\*\/\*/);
+  assert.match(builder, /node_modules\/@tesseract\.js-data\/\*\*\/\*/);
+  assert.match(builder, /installerLanguages:/);
+  assert.match(builder, /zh_CN/);
+  assert.match(builder, /createDesktopShortcut:\s*true/);
+  assert.match(builder, /runAfterFinish:\s*true/);
+});
+
+test('安装包里的 MCP 入口是 FlowMind --mcp，且不和主窗口抢单实例锁', () => {
+  assert.equal(isMcpStdioArgv(['FlowMind.exe', '--mcp']), true);
+  assert.equal(isMcpStdioArgv(['FlowMind.exe']), false);
+  assert.match(desktopMain, /startMcpStdio/);
+  assert.match(desktopMain, /mcpMode \|\| app.requestSingleInstanceLock/);
+  assert.match(desktopMain, /if \(mcpMode\) return;/);
 });
 
 test('笔记可插入网页，对话 @ 分组单独列出笔记', () => {

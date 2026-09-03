@@ -81,8 +81,8 @@ test('搜索结果摘要剥 Markdown，并按文档/笔记/会话筛选', () => 
 test('笔记有内容时打开最近一篇，空列表才显示欢迎页', () => {
   const loadBlock = notesSource.slice(notesSource.indexOf('async function load(nextArchived = archived)'), notesSource.indexOf('useEffect(() => { load(archived); }, [archived]);'));
   assert.match(loadBlock, /pickOpenNote\(list, \{ preferredId: initialNoteId, selectedId \}\)/);
-  assert.match(notesSource, /<ModuleWelcome icon=\{NotebookPen\} title="构建你的个人知识层"/);
-  assert.match(notesSource, /action=\{createNote\} actionLabel="创建第一篇笔记"/);
+  assert.match(notesSource, /<ModuleWelcome icon=\{NotebookPen\} title="记下这次容易忘的点"/);
+  assert.match(notesSource, /action=\{\(\) => createNote\('problem'\)\} actionLabel="新建问题记录"/);
 });
 
 test('after a sync the app selects the library that actually contains documents', () => {

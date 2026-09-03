@@ -1608,3 +1608,80 @@ html[data-theme='dark'] .app-shell.app-shell-v3[data-skin='friday'] .library-fil
     justify-content: center;
   }
 }
+
+.app-shell.app-shell-v3[data-skin='friday'] .unified-workspace-empty {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 14px;
+  width: min(680px, 100%);
+  max-width: 680px;
+  margin: 8px auto 0;
+  padding: 22px 24px 20px;
+  border: 1px solid var(--friday-line, rgba(0, 0, 0, .08));
+  border-radius: 16px;
+  background: var(--friday-paper, #fff);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .unified-workspace-empty b {
+  color: var(--friday-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .unified-workspace-empty-steps li {
+  color: var(--friday-muted, #6f6a5c);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .unified-workspace-empty button {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 4px;
+  border: 1px solid var(--friday-line, #eadfd4);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--friday-accent, #b46346);
+  background: var(--friday-paper, #fff);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-empty {
+  width: min(680px, 100%);
+  margin: 12px 0 0;
+  padding: 8px 4px 24px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-empty b {
+  color: var(--friday-ink);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-empty p,
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-steps li {
+  color: var(--friday-muted, #6f6a5c);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .library-browse-actions button {
+  border-color: var(--friday-line, #eadfd4);
+  color: var(--friday-accent, #b46346);
+  background: var(--friday-paper, #fff);
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-welcome {
+  padding: 48px 24px;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-welcome h2 {
+  margin: 18px 0 10px;
+  color: var(--friday-ink);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .module-welcome p {
+  max-width: 36em;
+  color: var(--friday-muted, #6f6a5c);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.app-shell.app-shell-v3[data-skin='friday'] .analysis-empty-drop p {
+  max-width: 36em;
+  font-size: 15px;
+  line-height: 1.75;
+}

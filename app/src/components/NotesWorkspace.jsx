@@ -923,6 +923,6 @@ export function NotesModule({ onToast, onOpenDocument, onOpenNote, onAskAboutNot
           {(indexedRelations.incoming.length || backlinks.length) ? <section><h3><Layers3 size={15}/>反向链接{indexedRelations.incoming.length ? <span>{indexedRelations.incoming.length}</span> : null}</h3>{indexedRelations.incoming.length ? <>{indexedRelations.incoming.slice(0, 80).map(({ edge, node }, index) => <button key={`${edge.id}:${node.id}:${index}`} type="button" onClick={() => openIndexedRelation({ edge, node })} disabled={!['document', 'note'].includes(node.type)}><span><b>{node.title || node.label}</b><small>{edge.label || edge.type}{edge.sourceAnchor ? ` · ${edge.sourceAnchor}` : ''}{edge.sourceVersionId ? ` · v${edge.sourceVersionId}` : ''}</small></span></button>)}{indexedRelations.incoming.length > 80 ? <p>仅显示前 80 条反向链接；当前索引共有 {indexedRelations.incoming.length} 条。</p> : null}</> : backlinks.map(note => <button key={note.id} onClick={() => select(note)}><span><b>{note.title}</b><small>{noteListPreview(note.content)}</small></span></button>)}</section> : null}
         </aside> : null}
       </div>
-    </> : <ModuleWelcome icon={NotebookPen} title="构建你的个人知识层" description="AI 时代沉淀的是容易忘的点。问完这次，把坑记下来，而不用再整篇抄答案。" action={createNote} actionLabel="创建第一篇笔记"/>}</main>
+    </> : <ModuleWelcome icon={NotebookPen} title="记下这次容易忘的点" description="先写问题，再写这次怎么解决的。不用整篇教程。" action={() => createNote('problem')} actionLabel="新建问题记录"/>}</main>
   </>;
 }

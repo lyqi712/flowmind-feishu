@@ -45,12 +45,27 @@ function closeServer(server, timeoutMs = 5000) {
   });
 }
 
+async function listenPreferred(app, { host, port }) {
+  const ports = [port, 8789, 8790, 8791].filter((value, index, list) => Number.isInteger(value) && value >= 0 && list.indexOf(value) === index);
+  let lastError = null;
+  for (const candidate of ports) {
+    try {
+      return await listen(app, { host, port: candidate });
+    } catch (error) {
+      lastError = error;
+      if (error?.code !== 'EADDRINUSE') throw error;
+    }
+  }
+  if (port === 0) throw lastError || new Error('desktop host listen failed');
+  return listen(app, { host, port: 0 });
+}
+
 export async function startDesktopHost({
   appRoot,
   distDir = path.join(appRoot, 'dist'),
   stateFile,
   host = '127.0.0.1',
-  port = 0,
+  port = 8789,
   logger,
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -105,7 +120,7 @@ export async function startDesktopHost({
     return res.status(500).json({ ok: false, error: { code: 'DESKTOP_HOST_ERROR', message: 'Desktop host error' } });
   });
 
-  const server = await listen(webApp, { host, port });
+  const server = await listenPreferred(webApp, { host, port });
   const address = server.address();
   const actualPort = typeof address === 'object' && address ? address.port : port;
   const origin = `http://${host === '::1' ? '[::1]' : host}:${actualPort}`;

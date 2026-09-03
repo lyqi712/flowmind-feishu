@@ -249,8 +249,12 @@ function EmptyRecent({ onCollect }) {
     <div className="unified-workspace-empty" data-onboarding="home">
       <span><Inbox size={19} aria-hidden="true" /></span>
       <div>
-        <b>第一次用，先收一份材料再问</b>
-        <p>1. 点收集，粘贴飞书链接或拖文件。2. 按向导给机器人开通只读权限。3. 回这里直接提问，或打开笔记把文件、网页放进去再 @ 它。</p>
+        <b>先收一份材料，再提问</b>
+        <ol className="unified-workspace-empty-steps">
+          <li>收集飞书链接或文件</li>
+          <li>向导里开通只读权限</li>
+          <li>回这里问，或 @ 笔记</li>
+        </ol>
       </div>
       <button type="button" onClick={onCollect}><Plus size={14} aria-hidden="true" />开始收集</button>
     </div>

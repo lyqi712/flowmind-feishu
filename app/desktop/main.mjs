@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, dialog, ipcMain, screen, session, shell } from 'electron';
 import { createDesktopLogger } from './logger.mjs';
+import { isMcpStdioArgv, startMcpStdio } from './mcp-stdio.mjs';
 import { startDesktopHost } from './runtime.mjs';
 import { resolveDesktopWorkspace } from './seed-userdata.mjs';
 import { createWindowStateStore, ensureBoundsOnScreen } from './window-state.mjs';
@@ -187,26 +188,33 @@ async function shutdown(reason, exitCode = 0) {
   return shutdownPromise;
 }
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const mcpMode = isMcpStdioArgv();
+const hasSingleInstanceLock = mcpMode || app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
-  });
+  if (!mcpMode) {
+    app.on('second-instance', () => {
+      if (!mainWindow) return;
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    });
 
-  app.on('before-quit', (event) => {
-    if (shutdownPromise) return;
-    event.preventDefault();
-    void shutdown('before-quit');
-  });
+    app.on('before-quit', (event) => {
+      if (shutdownPromise) return;
+      event.preventDefault();
+      void shutdown('before-quit');
+    });
 
-  app.on('window-all-closed', () => app.quit());
-  app.on('activate', async () => {
-    if (!mainWindow && localOrigin) mainWindow = await createMainWindow(localOrigin);
+    app.on('activate', async () => {
+      if (!mainWindow && localOrigin) mainWindow = await createMainWindow(localOrigin);
+    });
+  }
+
+  app.on('window-all-closed', () => {
+    if (mcpMode) return;
+    app.quit();
   });
 
   process.on('uncaughtException', (error) => {
@@ -229,7 +237,17 @@ if (!hasSingleInstanceLock) {
     extraCandidates: ['D:\\luxiaofei\\ima-feishu\\runtime-data'],
     isolated: smokeMode
   });
-  logger.info('desktop workspace ready', { mode: workspace.mode, dataDir: workspace.dataDir });
+  logger.info('desktop workspace ready', { mode: workspace.mode, dataDir: workspace.dataDir, mcpMode });
+
+  if (mcpMode) {
+    await startMcpStdio({
+      stateFile: workspace.stateFile,
+      contentDatabase: workspace.databasePath,
+      apiBaseUrl: process.env.FLOWMIND_API_URL || 'http://127.0.0.1:8789'
+    });
+    logger.info('desktop mcp stdio ready', { stateFile: workspace.stateFile });
+    return;
+  }
 
   const root = appRootPath();
   desktopHost = await startDesktopHost({
