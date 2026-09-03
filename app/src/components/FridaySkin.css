@@ -1192,6 +1192,8 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb {
 .app-shell.app-shell-v3[data-skin='friday'] .markdown-answer,
 .app-shell.app-shell-v3[data-skin='friday'] .bubble {
   color: var(--friday-ink);
+  font-size: 15px;
+  line-height: 1.75;
 }
 .app-shell.app-shell-v3[data-skin='friday'] .composer-mode-switch,
 .app-shell.app-shell-v3[data-skin='friday'] .library-filter,

@@ -29,10 +29,11 @@ import { retryChatRequest } from './workspace/chat-retry.js';
 import { consumeFeishuLoginQuery, startFeishuUserLogin } from './workspace/feishu-login.js';
 import { EvidenceStatusBadge } from './components/EvidenceStatus.jsx';
 import { injectCitationNodes } from './components/CitationTooltip.jsx';
+import { MessageFeedback } from './components/MessageFeedback.jsx';
 import './styles.css';
 import './components/UnifiedWorkspaceIma.css';
-import './components/SmartHome.css';
 import './components/SmartSearch.css';
+import './components/MessageFeedback.css';
 import './components/FeishuExportDialog.css';
 import './components/ReasoningChain.css';
 import './claude-theme.css';
@@ -462,7 +463,6 @@ function App() {
   const [chatRuntimeRevision, setChatRuntimeRevision] = useState(0);
   const [artifactBusy, setArtifactBusy] = useState('');
   const [agentMode, setAgentModeState] = useState('auto');
-  const [smartHome, setSmartHome] = useState(null);
   const [exportDialog, setExportDialog] = useState(null);
   const [smartSearchOpen, setSmartSearchOpen] = useState(false);
   const [searchHistory, setSearchHistory] = useState([]);
@@ -840,10 +840,9 @@ function App() {
       fetch('/api/skills').then(parseResponse),
       fetch('/api/content/items?limit=500').then(parseResponse),
       fetch('/api/knowledge/libraries').then(parseResponse),
-      fetch('/api/home').then(parseResponse),
       fetch('/api/search/history').then(parseResponse),
       fetch('/api/search/trending').then(parseResponse)
-    ]).then(([stateResult, modelResult, skillResult, contentResult, libraryResult, homeResult, historyResult, trendingResult]) => {
+    ]).then(([stateResult, modelResult, skillResult, contentResult, libraryResult, historyResult, trendingResult]) => {
       if (cancelled) return;
       const rawContentItems = contentResult.status === 'fulfilled' && Array.isArray(contentResult.value.items) ? contentResult.value.items : null;
       const loadedLibraries = libraryResult.status === 'fulfilled' && Array.isArray(libraryResult.value.libraries) ? libraryResult.value.libraries : [];
@@ -874,9 +873,6 @@ function App() {
       if (skillResult.status === 'fulfilled' && Array.isArray(skillResult.value.skills)) {
         setSkills(skillResult.value.skills);
         if (skillResult.value.skills[0]) setSelectedSkill(skillResult.value.skills[0].id);
-      }
-      if (homeResult.status === 'fulfilled') {
-        setSmartHome(homeResult.value);
       }
       if (historyResult.status === 'fulfilled' && Array.isArray(historyResult.value.history)) {
         setSearchHistory(historyResult.value.history);
@@ -1753,57 +1749,9 @@ function App() {
     runSkill(skillId === 'deep-summary' ? 'summary' : skillId, documentIds);
   }
 
-  function refreshSmartHome() {
-    fetch('/api/home').then(parseResponse).then(setSmartHome).catch(() => undefined);
-  }
-
   async function handleFeishuExported(document) {
-    refreshSmartHome();
     try { await refreshContentItems(); } catch { /* 列表刷新失败不挡导出结果 */ }
     if (document?.contentItemId) notify('已导出到飞书，并收回知识库');
-  }
-
-  function handleSmartHomeAction(action, payload) {
-    if (action === 'open-export') {
-      const url = typeof payload === 'string' ? payload : payload?.url;
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (action === 'open-document') {
-      openContentReader({ id: payload, documentId: payload });
-      return;
-    }
-    if (action === 'open-sync') {
-      openFeishuExperience();
-      return;
-    }
-    if (action === 'open-collect') {
-      void preloadWorkspaceSurface('collection');
-      setCollectionOpen(true);
-      return;
-    }
-    if (action === 'continue-skill') {
-      const run = runs.find(item => item.id === payload);
-      if (run) {
-        setSkillRun(run);
-        openWorkspaceModule('skills');
-      }
-      return;
-    }
-    if (action === 'continue-conversation') {
-      const conversation = (state.conversations || []).find(item => item.id === payload);
-      createChatWorkspaceTab({
-        title: conversation?.question || conversation?.title || '对话',
-        scene: { conversationId: payload }
-      });
-      return;
-    }
-    if (action === 'run-skill') {
-      const skillId = payload?.skillId || payload;
-      if (payload?.documentIds?.length) setSelectedDocs(payload.documentIds);
-      createChatWorkspaceTab({ title: payload?.title || '新对话' });
-      runChatSkill(skillId, '');
-    }
   }
 
   function handleAttachContext() {
@@ -2988,7 +2936,7 @@ function App() {
       const chatCanvas = tab?.kind === 'chat' && tab.id !== 'module-knowledge' && !showDocument && !graphOpen;
       return <div className={`workspace-tab-frame${libraryBrowse ? ' is-library-browse' : ''}${showDocument ? ' is-document-reader workspace-tab-frame-single' : chatCanvas ? ' is-chat-canvas workspace-tab-frame-single' : ''}`} data-library-browse={libraryBrowse ? 'true' : undefined} data-document-reader={showDocument ? 'true' : undefined} data-chat-canvas={chatCanvas ? 'true' : undefined}>
         <KnowledgeSidebar state={state} selectedKb={selectedKb} setSelectedKb={setSelectedKb} docs={docs} selectedDocs={selectedDocs} setSelectedDocs={setSelectedDocs} setShowSync={setShowSync} onOpenDocument={openContentReader} onPrefetchDocument={prefetchWorkspaceDocument} onOpenGraph={openKnowledgeGraph} libraries={knowledgeLibraries} libraryFilter={knowledgeLibraryFilter} setLibraryFilter={setKnowledgeLibraryFilter} libraryBusy={knowledgeLibraryBusy} onRefreshLibraries={() => loadKnowledgeLibraries({ refresh: true })} onFollowLibrary={followKnowledgeLibrary} onSelectLibrary={selectKnowledgeLibrary} onCollect={() => { void preloadWorkspaceSurface('collection'); setCollectionOpen(true); }}/>
-        {graphOpen ? <Suspense fallback={<WorkspaceRouteFallback label="知识图谱"/>}><KnowledgeGraph documents={state.documents || []} notes={graphNotes} graph={graphData || EMPTY_INDEXED_GRAPH} loading={graphLoading} initialRootId={graphFocus?.documentId || ''} initialLocalMode={Boolean(graphFocus?.documentId)} onOpenDocument={openContentReader} onOpenNote={openGraphNote} onAskNode={handleKnowledgeObservationAsk} onCreateNote={node => writeSourceNote(node.raw || { id: node.sourceId, title: node.label })} onOpenEvidenceWorkbench={documentIds => openEvidenceWorkbench(Array.isArray(documentIds) && documentIds.length ? documentIds : selectedDocs)} onConfirmSuggestion={confirmGraphSuggestion} onRefreshGraph={async () => { invalidateGraphData(); await requestGraphSnapshot(); }} onClose={() => { setGraphOpen(false); setGraphFocus(null); }}/></Suspense> : showDocument && readerBusy ? <main className="workspace reader-loading"><LoaderCircle className="spin" size={26}/><span>正在恢复文档…</span></main> : showDocument && readerDetail?.item ? <Suspense fallback={<WorkspaceRouteFallback label="文档"/>}><ContentReader item={readerDetail.item} attachments={readerDetail.attachments || []} inQuestionScope={selectedDocs.includes(readerDetail.item.id)} onToggleQuestionScope={toggleReaderQuestionScope} onAsk={(prompt, selection) => handleReaderAsk(prompt, readerDetail.item, selection)} onContinueInWorkspace={(item, payload) => handleContinueReaderInWorkspace(item, payload)} onOpenEvidenceWorkbench={() => openEvidenceWorkbench([readerDetail.item.id, ...selectedDocs.filter(id => id !== readerDetail.item.id)])} conversation={readerChat.documentId === readerDetail.item.id ? readerChat : null} onStopConversation={handleStopReaderAsk} onRetryConversation={() => handleRetryReaderAsk(readerDetail.item)} onCreateWriting={selection => handleReaderCreateWriting(readerDetail.item, selection)} onRunInterpretation={(kind, selection, force) => handleReaderInterpretation(kind, readerDetail.item, selection, force)} interpretationRuns={runs.filter(run => ["mind-map", "quiz"].includes(run.skillId) && (run.documentIds || run.input?.documentIds || []).map(String).includes(String(readerDetail.item.id)))} onWriteSourceNote={writeSourceNote} onSaveAnswer={message => createAnswerArtifact('note', message)} onOpenGraph={() => openKnowledgeGraph({ documentId: readerDetail.item.id })} onOpenDocument={openRelatedDocument} onSelectionChange={handleReaderSelection} onReadingPositionChange={position => handleReaderPosition(position, readerDetail.item)} onAnchorChange={anchor => setReaderAnchor(anchor)} initialAnchor={readerAnchor} initialExcerpt={readerExcerpt} initialReadingPosition={workspaceSession.readingPositions[readerDetail.item.id]} onResyncAttachments={handleReaderResyncAttachments} resyncBusy={readerResyncBusy} resyncError={readerResyncError} userLoggedIn={Boolean(feishuUser.loggedIn)} onLoginFeishu={handleFeishuUserLogin} onClose={() => closeWorkspaceTab(tab)}/></Suspense> : <ChatWorkspace kb={kb} selectedDocs={selectedDocs} setSelectedDocs={setSelectedDocs} messages={messages} setMessages={setMessages} query={query} setQuery={setQuery} ask={ask} streaming={streaming} stopGeneration={stopGeneration} retryLast={retryLast} onRegenerate={regenerateAnswer} chatError={chatError} modelSettings={modelSettings} openModelDrawer={openModelDrawer} skills={skills} runSkill={runSkill} runChatSkill={runChatSkill} skillRun={skillRun} onRetrySkillRun={retryRecoverableChatSkill} historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} conversations={(state.conversations || []).filter(item => item.surface !== 'reader')} onNewConversation={startNewConversation} onRestoreConversation={restoreConversation} onOpenDocument={openRelatedDocument} onCreateArtifact={createAnswerArtifact} artifactBusy={artifactBusy} endRef={endRef} attachments={chatAttachments} attachmentBusy={chatAttachmentBusy} attachmentCapabilities={chatAttachmentCapabilities} onAddAttachments={addChatAttachments} onRemoveAttachment={removeChatAttachment} onRetryAttachment={retryChatAttachment} documents={conversationMaterials} workspaceContext={workspaceContext} onOpenModule={selectNavigation} includeKnowledgeBase={chatIncludeKnowledgeBase} onIncludeKnowledgeBaseChange={setChatIncludeKnowledgeBase} browseMode={libraryBrowse} agentMode={agentMode} setAgentMode={setAgentMode} onOpenEvidence={documentIds => openEvidenceWorkbench(documentIds)} onConfirmAgent={confirmAgent} onConfirmSuggestion={confirmGraphSuggestion} onOpenWrittenArtifact={openWrittenArtifact} smartHome={smartHome} exportDialog={exportDialog} setExportDialog={setExportDialog} onContinueSkillRun={runId => { const run = skillRuns.find(item => item.id === runId); if (run) { setSkillRun(run); openWorkspaceModule('skills'); } }} onConnectFeishu={openFeishuExperience} onSmartHomeAction={handleSmartHomeAction} onFeishuExported={handleFeishuExported} copilots={state.copilots || []} activeCopilotId={state.settings?.activeCopilotId || ''} onSelectCopilot={activateCopilot} onOpenCopilots={() => openWorkspaceModule('copilots')} onCreateWriting={() => handleWorkspaceCreateWriting()} onOpenGraph={() => openKnowledgeGraph()} onPrefetchDocument={prefetchWorkspaceDocument} onCollect={() => { void preloadWorkspaceSurface('collection'); setCollectionOpen(true); }}/>}
+        {graphOpen ? <Suspense fallback={<WorkspaceRouteFallback label="知识图谱"/>}><KnowledgeGraph documents={state.documents || []} notes={graphNotes} graph={graphData || EMPTY_INDEXED_GRAPH} loading={graphLoading} initialRootId={graphFocus?.documentId || ''} initialLocalMode={Boolean(graphFocus?.documentId)} onOpenDocument={openContentReader} onOpenNote={openGraphNote} onAskNode={handleKnowledgeObservationAsk} onCreateNote={node => writeSourceNote(node.raw || { id: node.sourceId, title: node.label })} onOpenEvidenceWorkbench={documentIds => openEvidenceWorkbench(Array.isArray(documentIds) && documentIds.length ? documentIds : selectedDocs)} onConfirmSuggestion={confirmGraphSuggestion} onRefreshGraph={async () => { invalidateGraphData(); await requestGraphSnapshot(); }} onClose={() => { setGraphOpen(false); setGraphFocus(null); }}/></Suspense> : showDocument && readerBusy ? <main className="workspace reader-loading"><LoaderCircle className="spin" size={26}/><span>正在恢复文档…</span></main> : showDocument && readerDetail?.item ? <Suspense fallback={<WorkspaceRouteFallback label="文档"/>}><ContentReader item={readerDetail.item} attachments={readerDetail.attachments || []} inQuestionScope={selectedDocs.includes(readerDetail.item.id)} onToggleQuestionScope={toggleReaderQuestionScope} onAsk={(prompt, selection) => handleReaderAsk(prompt, readerDetail.item, selection)} onContinueInWorkspace={(item, payload) => handleContinueReaderInWorkspace(item, payload)} onOpenEvidenceWorkbench={() => openEvidenceWorkbench([readerDetail.item.id, ...selectedDocs.filter(id => id !== readerDetail.item.id)])} conversation={readerChat.documentId === readerDetail.item.id ? readerChat : null} onStopConversation={handleStopReaderAsk} onRetryConversation={() => handleRetryReaderAsk(readerDetail.item)} onCreateWriting={selection => handleReaderCreateWriting(readerDetail.item, selection)} onRunInterpretation={(kind, selection, force) => handleReaderInterpretation(kind, readerDetail.item, selection, force)} interpretationRuns={runs.filter(run => ["mind-map", "quiz"].includes(run.skillId) && (run.documentIds || run.input?.documentIds || []).map(String).includes(String(readerDetail.item.id)))} onWriteSourceNote={writeSourceNote} onSaveAnswer={message => createAnswerArtifact('note', message)} onOpenGraph={() => openKnowledgeGraph({ documentId: readerDetail.item.id })} onOpenDocument={openRelatedDocument} onSelectionChange={handleReaderSelection} onReadingPositionChange={position => handleReaderPosition(position, readerDetail.item)} onAnchorChange={anchor => setReaderAnchor(anchor)} initialAnchor={readerAnchor} initialExcerpt={readerExcerpt} initialReadingPosition={workspaceSession.readingPositions[readerDetail.item.id]} onResyncAttachments={handleReaderResyncAttachments} resyncBusy={readerResyncBusy} resyncError={readerResyncError} userLoggedIn={Boolean(feishuUser.loggedIn)} onLoginFeishu={handleFeishuUserLogin} onClose={() => closeWorkspaceTab(tab)}/></Suspense> : <ChatWorkspace kb={kb} selectedDocs={selectedDocs} setSelectedDocs={setSelectedDocs} messages={messages} setMessages={setMessages} query={query} setQuery={setQuery} ask={ask} streaming={streaming} stopGeneration={stopGeneration} retryLast={retryLast} onRegenerate={regenerateAnswer} chatError={chatError} modelSettings={modelSettings} openModelDrawer={openModelDrawer} skills={skills} runSkill={runSkill} runChatSkill={runChatSkill} skillRun={skillRun} onRetrySkillRun={retryRecoverableChatSkill} historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} conversations={(state.conversations || []).filter(item => item.surface !== 'reader')} onNewConversation={startNewConversation} onRestoreConversation={restoreConversation} onOpenDocument={openRelatedDocument} onCreateArtifact={createAnswerArtifact} artifactBusy={artifactBusy} endRef={endRef} attachments={chatAttachments} attachmentBusy={chatAttachmentBusy} attachmentCapabilities={chatAttachmentCapabilities} onAddAttachments={addChatAttachments} onRemoveAttachment={removeChatAttachment} onRetryAttachment={retryChatAttachment} documents={conversationMaterials} workspaceContext={workspaceContext} onOpenModule={selectNavigation} includeKnowledgeBase={chatIncludeKnowledgeBase} onIncludeKnowledgeBaseChange={setChatIncludeKnowledgeBase} browseMode={libraryBrowse} agentMode={agentMode} setAgentMode={setAgentMode} onOpenEvidence={documentIds => openEvidenceWorkbench(documentIds)} onConfirmAgent={confirmAgent} onConfirmSuggestion={confirmGraphSuggestion} onOpenWrittenArtifact={openWrittenArtifact} exportDialog={exportDialog} setExportDialog={setExportDialog} onContinueSkillRun={runId => { const run = skillRuns.find(item => item.id === runId); if (run) { setSkillRun(run); openWorkspaceModule('skills'); } }} onConnectFeishu={openFeishuExperience} onFeishuExported={handleFeishuExported} copilots={state.copilots || []} activeCopilotId={state.settings?.activeCopilotId || ''} onSelectCopilot={activateCopilot} onOpenCopilots={() => openWorkspaceModule('copilots')} onCreateWriting={() => handleWorkspaceCreateWriting()} onOpenGraph={() => openKnowledgeGraph()} onPrefetchDocument={prefetchWorkspaceDocument} onCollect={() => { void preloadWorkspaceSurface('collection'); setCollectionOpen(true); }} conversationId={chatConversationId}/>}
       </div>;
     }
     if (route === 'evidence') return <div className="workspace-tab-frame workspace-tab-frame-single"><Suspense fallback={<WorkspaceRouteFallback label="证据工作台"/>}><EvidenceWorkbench documents={conversationMaterials} initialDocumentIds={tab?.documentIds?.length ? tab.documentIds : selectedDocs} initialQuestion={tab?.question || ''} onOpenDocument={openContentReader} onClose={() => closeWorkspaceTab(tab)}/></Suspense></div>;
@@ -3039,8 +2987,6 @@ function App() {
       onRemoveContext={handleRemoveContext}
       onClearSelection={() => { const selection = workspaceSession.aiContextItems.find(item => item.kind === 'selection'); if (selection) dispatchWorkspace({ type: 'REMOVE_AI_CONTEXT_ITEM', id: selection.id }); }}
       onToggleCompact={setWorkspaceCompact}
-      smartHome={smartHome}
-      onSmartHomeAction={handleSmartHomeAction}
       libraryName={kb?.name || ''}
     />
 
@@ -3222,7 +3168,7 @@ async function copyAnswerText(text) {
   }
 }
 
-function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessages, query, setQuery, ask, streaming, stopGeneration, retryLast, onRegenerate, chatError, modelSettings, openModelDrawer, skills, runSkill, runChatSkill, skillRun, onRetrySkillRun, historyOpen, setHistoryOpen, conversations, onNewConversation, onRestoreConversation, onOpenDocument, onCreateArtifact, artifactBusy, endRef, attachments, attachmentBusy, attachmentCapabilities, onAddAttachments, onRemoveAttachment, onRetryAttachment, documents, workspaceContext, onOpenModule, includeKnowledgeBase, onIncludeKnowledgeBaseChange, browseMode = false, agentMode = 'auto', setAgentMode, onOpenEvidence, onConfirmAgent, onConfirmSuggestion, onOpenWrittenArtifact, smartHome, exportDialog, setExportDialog, onContinueSkillRun, onConnectFeishu, onSmartHomeAction, onFeishuExported, copilots = [], activeCopilotId = '', onSelectCopilot, onOpenCopilots, onCreateWriting, onOpenGraph, onPrefetchDocument, onCollect }) {
+function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessages, query, setQuery, ask, streaming, stopGeneration, retryLast, onRegenerate, chatError, modelSettings, openModelDrawer, skills, runSkill, runChatSkill, skillRun, onRetrySkillRun, historyOpen, setHistoryOpen, conversations, onNewConversation, onRestoreConversation, onOpenDocument, onCreateArtifact, artifactBusy, endRef, attachments, attachmentBusy, attachmentCapabilities, onAddAttachments, onRemoveAttachment, onRetryAttachment, documents, workspaceContext, onOpenModule, includeKnowledgeBase, onIncludeKnowledgeBaseChange, browseMode = false, agentMode = 'auto', setAgentMode, onOpenEvidence, onConfirmAgent, onConfirmSuggestion, onOpenWrittenArtifact, exportDialog, setExportDialog, onContinueSkillRun, onConnectFeishu, onFeishuExported, copilots = [], activeCopilotId = '', onSelectCopilot, onOpenCopilots, onCreateWriting, onOpenGraph, onPrefetchDocument, onCollect, conversationId = '' }) {
   const fileInputRef = useRef(null);
   const composerInputRef = useRef(null);
   const previewRef = useRef(null);
@@ -3391,6 +3337,7 @@ function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessage
               </div> : null}
             </div>
           </div> : null}
+          {message.done && message.role === 'assistant' && message.text ? <MessageFeedback conversationId={message.conversationId || conversationId} messageId={message.id} /> : null}
           {message.versions?.length > 0 && <details className="answer-versions"><summary>查看 {message.versions.length} 个历史版本</summary>{message.versions.map((version, versionIndex) => <article key={versionIndex}><b>版本 {versionIndex + 1}</b><p>{version.text}</p></article>)}</details>}
           {message.relations ? <Suspense fallback={<WorkspaceRouteFallback label="深度答案"/>}><DeepAnswerPanel message={{ ...message.relations, plan: message.relations?.plan?.steps || message.relations?.plan, question: message.question, citations: uniqueCitationSources(message.citations), citationIntegrity: message.citationIntegrity || message.relations?.citationIntegrity, showProcessDetails: hasSubstantiveEvidenceAnalysis(message.relations) }} busy={artifactBusy.startsWith(`${message.id || message.conversationId || 'answer'}:`) ? '创建工作产物' : false} onFollowUp={suggestion => ask(suggestion)} onOpenDocument={(document, panelMessage) => document?.snippet || document?.excerpt || document?.anchor ? openCitation(document) : onOpenDocument?.(document, panelMessage || message)} onCreateArtifact={kind => onCreateArtifact(kind, message)} onConfirmSuggestion={onConfirmSuggestion}/></Suspense> : message.citations?.length > 0 && !hasKnowledgeWork(message.knowledgeWork) ? <details className="answer-sources"><summary>依据 {uniqueCitationSources(message.citations).length} 篇资料</summary><div className="citations"><span>出处</span>{uniqueCitationSources(message.citations).map((citation, idx) => <button key={citation.id || citation.documentId || idx} onClick={() => openCitation(citation)} title={citation.snippet || citation.excerpt || ''}><Link2 size={13}/><b>[{idx + 1}]</b><span>{citation.title}</span></button>)}</div></details> : null}
         </div>

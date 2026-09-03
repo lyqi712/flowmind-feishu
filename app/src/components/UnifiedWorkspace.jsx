@@ -43,7 +43,7 @@ export const WORKSPACE_COMMANDS = Object.freeze([
   { id: 'note', label: '创建笔记', description: '基于当前材料创建一篇来源笔记', keywords: '新建 创建 笔记 markdown', Icon: StickyNote },
   { id: 'problem-note', label: '新建问题记录', description: '只记下这次容易忘的点，而不是整篇答案', keywords: '问题 记录 教训 例外 踩坑', Icon: ListChecks },
   { id: 'browse', label: '打开网页', description: '在工作台内嵌打开网页，看完剪进问题记录', keywords: '浏览器 网页 剪藏 url', Icon: Globe },
-  { id: 'writing', label: '\u521b\u5efa\u5199\u4f5c\u8349\u7a3f', description: '\u628a\u5f53\u524d\u6587\u6863\u3001\u9009\u533a\u548c\u6750\u6599\u5e26\u5165\u5199\u4f5c\u53f0', keywords: '\u65b0\u5efa \u521b\u5efa \u5199\u4f5c \u8349\u7a3f \u6587\u7ae0', Icon: FilePenLine },
+  { id: 'writing', label: '创建写作草稿', description: '把当前文档、选区和材料带入写作台', keywords: '新建 创建 写作 草稿 文章', Icon: FilePenLine },
   { id: 'skill', label: '运行 Skill', description: '启动深度总结、跨文档对比或研究报告', keywords: 'skill 技能 总结 对比 报告', Icon: WandSparkles, payload: { skillId: 'deep-summary' } },
   { id: 'navigate', label: '跳转到知识库', description: '浏览全部文档、收藏、标签和保存视图', keywords: '跳转 打开 知识库 文档', Icon: BookOpen, payload: { target: 'knowledge' } }
 ]);
@@ -683,8 +683,6 @@ export function UnifiedWorkspace({
   onCloseSearch,
   onOpenSearchResult,
   onReopenSearch,
-  smartHome = null,
-  onSmartHomeAction,
   libraryName = ''
 }) {
   const normalizedTabs = useMemo(() => normalizeWorkspaceTabs(tabs), [tabs]);

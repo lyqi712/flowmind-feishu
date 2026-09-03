@@ -23,6 +23,13 @@
   gap: 8px;
 }
 
+.feedback-error {
+  margin: 8px 0 0;
+  color: #b4474e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .feedback-btn {
   display: flex;
   align-items: center;

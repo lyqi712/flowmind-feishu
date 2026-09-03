@@ -234,7 +234,6 @@ if (!hasSingleInstanceLock) {
   const workspace = resolveDesktopWorkspace({
     userData,
     unpackagedRoot: app.isPackaged ? null : developmentAppRoot,
-    extraCandidates: ['D:\\luxiaofei\\ima-feishu\\runtime-data'],
     isolated: smokeMode
   });
   logger.info('desktop workspace ready', { mode: workspace.mode, dataDir: workspace.dataDir, mcpMode });

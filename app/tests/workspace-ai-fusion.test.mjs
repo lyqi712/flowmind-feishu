@@ -136,6 +136,8 @@ test('空对话先给 Copilot 开场，不让智能首页把提问入口挤掉',
   assert.match(mainSource, /这个 Copilot 的 Skills/);
   assert.match(mainSource, /id === 'evidence'/);
   assert.doesNotMatch(mainSource, /!messages.some\(message => message.role === 'user'\) && smartHome \? \(/);
+  assert.doesNotMatch(mainSource, /fetch\('\/api\/home'\)/);
+  assert.match(mainSource, /<MessageFeedback conversationId=\{message.conversationId \|\| conversationId\}/);
 });
 
 test('Copilot 配置能绑定知识库、开场问题，并回到问答使用', () => {

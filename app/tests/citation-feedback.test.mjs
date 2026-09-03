@@ -253,4 +253,16 @@ test('正文 [n] 必须按原 citations 下标映射，去重会把 [2] 指错�
   assert.notEqual(unique[hits[1] - 1].title, evidenceList[hits[1] - 1].title);
 });
 
+test('主问答反馈不弹系统框，缺类型时在页面里提示', async () => {
+  const { readFileSync } = await import('node:fs');
+  const feedback = readFileSync(new URL('../src/components/MessageFeedback.jsx', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  const desktop = readFileSync(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
+  assert.match(feedback, /请选择问题类型/);
+  assert.match(feedback, /setSubmitError/);
+  assert.doesNotMatch(feedback, /alert\(/);
+  assert.match(main, /<MessageFeedback conversationId=\{message.conversationId \|\| conversationId\}/);
+  assert.doesNotMatch(desktop, /luxiaofei/);
+});
+
 console.log('✓ 所有引用和反馈功能测试通过');

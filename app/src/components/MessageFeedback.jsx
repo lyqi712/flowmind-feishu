@@ -13,6 +13,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleRating = (newRating) => {
     setRating(newRating);
@@ -26,6 +27,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
 
   const submitFeedback = async (ratingValue, issue, commentValue) => {
     setSubmitting(true);
+    setSubmitError('');
 
     try {
       const payload = buildAnswerFeedbackPayload({
@@ -36,7 +38,9 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
         comment: commentValue || comment
       });
       if (!payload.valid) {
-        onFeedback?.({ success: false, error: new Error('缺少会话或回答标识，无法提交反馈') });
+        const error = new Error('缺少会话或回答标识，无法提交反馈');
+        setSubmitError(error.message);
+        onFeedback?.({ success: false, error });
         return;
       }
       const { valid, ...body } = payload;
@@ -49,15 +53,13 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
       if (response.ok) {
         setSubmitted(true);
         onFeedback?.({ success: true, rating: ratingValue || rating });
-
-        // 3秒后隐藏
-        setTimeout(() => {
-          setShowDetail(false);
-          setSubmitted(false);
-        }, 3000);
+        return;
       }
+      const failed = new Error('反馈没有送出，请稍后重试');
+      setSubmitError(failed.message);
+      onFeedback?.({ success: false, error: failed });
     } catch (error) {
-      console.error('提交反馈失败:', error);
+      setSubmitError(error?.message || '反馈没有送出，请稍后重试');
       onFeedback?.({ success: false, error });
     } finally {
       setSubmitting(false);
@@ -66,7 +68,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
 
   const handleSubmitDetail = () => {
     if (!selectedIssue) {
-      alert('请选择问题类型');
+      setSubmitError('请选择问题类型');
       return;
     }
     submitFeedback(rating, selectedIssue, comment);
@@ -86,6 +88,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
       {!rating && (
         <div className="feedback-buttons">
           <button
+            type="button"
             className="feedback-btn positive"
             onClick={() => handleRating('positive')}
             title="这个回答有帮助"
@@ -94,6 +97,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
             有帮助
           </button>
           <button
+            type="button"
             className="feedback-btn negative"
             onClick={() => handleRating('negative')}
             title="这个回答不准确"
@@ -103,6 +107,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
           </button>
         </div>
       )}
+      {submitError && !showDetail ? <p className="feedback-error" role="alert">{submitError}</p> : null}
 
       {showDetail && (
         <div className="feedback-detail">
@@ -181,7 +186,9 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
           />
 
           <div className="detail-actions">
+            {submitError ? <p className="feedback-error" role="alert">{submitError}</p> : null}
             <button
+              type="button"
               className="btn-cancel"
               onClick={() => {
                 setShowDetail(false);
@@ -193,6 +200,7 @@ export function MessageFeedback({ conversationId, messageId, onFeedback }) {
               取消
             </button>
             <button
+              type="button"
               className="btn-submit"
               onClick={handleSubmitDetail}
               disabled={!selectedIssue || submitting}
