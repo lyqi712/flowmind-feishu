@@ -79,6 +79,8 @@ test('阅读器选区在问答和 Agent 模式都发送给服务器复核，而�
   ]) assert.ok(mainSource.includes(fragment), `missing selection workflow fragment: ${fragment}`);
   const askBody = mainSource.slice(mainSource.indexOf('async function ask('), mainSource.indexOf('async function runChatSkill('));
   assert.doesNotMatch(askBody, /\/api\/chat\/stream/);
+  assert.match(askBody, /Array\.isArray\(scopeDocumentIds\)/);
+  assert.match(askBody, /normalizedDocumentIds\(scopeDocumentIds\)\.length > 0/);
 });
 
 test('阅读器问答与写作默认只携带当前文档，其他资料必须显式加入', () => {

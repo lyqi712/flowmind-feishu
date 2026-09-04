@@ -3041,12 +3041,16 @@ export function createApp({
       const effectiveKnowledgeBaseIds = boundKnowledgeBaseIds.length
         ? boundKnowledgeBaseIds
         : (currentKnowledgeBaseId ? [currentKnowledgeBaseId] : []);
+      const matchingKnowledgeBaseIds = effectiveKnowledgeBaseIds.filter(id => allMaterials.some(item => {
+        const libraryId = String(item?.knowledgeBaseId || item?.spaceId || '');
+        return libraryId === id;
+      }));
       const availableMaterials = readerLock
         ? allMaterials.filter(item => readerLock.documentIds.includes(String(item.id)))
         : scope.scopeRequested
           ? allMaterials
-          : filterKnowledgeMaterials(allMaterials, { knowledgeBaseIds: effectiveKnowledgeBaseIds });
-      const allowedKnowledgeBaseIds = scope.scopeRequested ? [] : effectiveKnowledgeBaseIds;
+          : filterKnowledgeMaterials(allMaterials, { knowledgeBaseIds: matchingKnowledgeBaseIds });
+      const allowedKnowledgeBaseIds = scope.scopeRequested ? [] : matchingKnowledgeBaseIds;
       const questionSelection = resolveQuestionSelection(body.selection, scope);
       const conversationId = existingConversation?.id || id('conversation');
       const handoff = conversationHandoff(existingConversation, store);

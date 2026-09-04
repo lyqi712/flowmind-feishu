@@ -106,12 +106,18 @@ test('真实 HTTP：空库拒答、mock 同步后能搜能问、问题记录能�
 
     const asked = await agentDone(live.base, {
       question: '知识库助手有哪些核心能力？',
+      mode: 'auto'
+    });
+    assert.notEqual(asked.answer, EMPTY_RETRIEVAL_ANSWER, `unscoped home-like ask got: ${asked.answer}`);
+    assert.match(asked.answer, /资料|结论|核心|能力|\[1\]|同步|引用|知识库/);
+
+    const scopedAsk = await agentDone(live.base, {
+      question: '知识库助手有哪些核心能力？',
       mode: 'auto',
       documentIds: [overview.id],
       context: { scopeRequested: true, documentIds: [overview.id] }
     });
-    assert.notEqual(asked.answer, EMPTY_RETRIEVAL_ANSWER, `scoped ask got: ${asked.answer}`);
-    assert.match(asked.answer, /资料|结论|核心|能力|\[1\]|同步|引用/);
+    assert.notEqual(scopedAsk.answer, EMPTY_RETRIEVAL_ANSWER, `scoped ask got: ${scopedAsk.answer}`);
 
     const note = await json(live.base, '/api/notes', 'POST', {
       title: '问题记录：出锅忘葱花',

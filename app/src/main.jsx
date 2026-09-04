@@ -2180,7 +2180,11 @@ function App() {
     const chatTabId = String(tabIdOverride || currentChatTabId());
     const tabScene = getChatTabScene(workspaceSession.tabs.find(tab => tab.id === chatTabId) || { chat: {} });
     const scopeExplicit = scopeExplicitOverride === null
-      ? (scopeDocumentIds !== null ? true : Boolean(tabScene.scopeExplicit || (chatTabId === currentChatTabId() && chatScopeExplicitRef.current)))
+      ? (Array.isArray(scopeDocumentIds)
+        ? normalizedDocumentIds(scopeDocumentIds).length > 0
+        : scopeDocumentIds != null
+          ? true
+          : Boolean(tabScene.scopeExplicit || (chatTabId === currentChatTabId() && chatScopeExplicitRef.current)))
       : scopeExplicitOverride === true;
     const mode = agentModeOption(modeOverride).id;
     const requestedSelection = selectionOverride;
@@ -2271,9 +2275,11 @@ function App() {
     setKnowledgeIntent('chat');
     const chatTabId = String(requestedTabId || currentChatTabId());
     const tabScene = getChatTabScene(workspaceSession.tabs.find(tab => tab.id === chatTabId) || { chat: {} });
-    const requestedScopeExplicit = scopeDocumentIds !== null
-      ? true
-      : Boolean(tabScene.scopeExplicit || (chatTabId === currentChatTabId() && chatScopeExplicitRef.current));
+    const requestedScopeExplicit = Array.isArray(scopeDocumentIds)
+      ? normalizedDocumentIds(scopeDocumentIds).length > 0
+      : scopeDocumentIds != null
+        ? true
+        : Boolean(tabScene.scopeExplicit || (chatTabId === currentChatTabId() && chatScopeExplicitRef.current));
     if (chatTabId === 'module-knowledge') dispatchWorkspace({ type: 'UPDATE_TAB', tabId: chatTabId, patch: { title: '知识问答' } });
     const mode = agentModeOption(requestedMode).id;
     const requestedSelection = selectionOverride;
