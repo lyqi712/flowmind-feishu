@@ -1,11 +1,189 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import { dirname, resolve } from 'node:path';
 import test, { after, before } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer, transformWithEsbuild } from 'vite';
+
+test('queued 写回拒绝不发布成功、不改 dirty，显式写入仍可重试', () => {
+  const updateCode = source.slice(source.indexOf('  function update(patch,'), source.indexOf('  function openLinkedNote('));
+  const writeCode = source.slice(source.indexOf('  function writeAssistantIntoNote('), source.indexOf('  function updateQaField('));
+  const make = new Function('env', `with (env) { ${updateCode}\n${writeCode}\nreturn { update, writeAssistantIntoNote }; }`);
+  for (const rejection of ['content', 'token', 'generation', 'document', 'attachment', 'none']) {
+    let state = { id: 'n1', content: 'base' };
+    let valid = true;
+    let generation = 1;
+    let queue = [];
+    let messages = [{ id: 'm1', applied: '' }];
+    const dirty = [];
+    const toasts = [];
+    const token = { generation: 1 };
+    const env = {
+      draftRef: { current: state }, attachmentBusyRef: { current: '' },
+      aiRequestRef: { current: { isCurrent: () => false } },
+      assistantRequestRef: { current: { isCurrent: t => valid && t === token && t.generation === generation } },
+      setDraft: updater => queue.push(updater),
+      flushSync: callback => { callback(); for (const updater of queue) state = updater(state); queue = []; env.draftRef.current = state; },
+      setDirty: value => dirty.push(value), setSaveError() {},
+      setAssistantThread: updater => { messages = updater(messages); },
+      isProblemNote: () => false,
+      appendAssistantAnswerToNote: (content, answer) => `${content}\n${answer}`,
+      mergeAppliedFields: (_, fields) => fields,
+      onToast: text => toasts.push(text)
+    };
+    if (rejection === 'content') queue.push(current => ({ ...current, content: 'queued edit' }));
+    if (rejection === 'document') queue.push(() => ({ id: 'n2', content: 'base' }));
+    if (rejection === 'token') queue.push(current => { valid = false; return current; });
+    if (rejection === 'generation') queue.push(current => { generation++; return current; });
+    if (rejection === 'attachment') env.attachmentBusyRef.current = 'image';
+    const api = make(env);
+    const result = api.writeAssistantIntoNote({ id: 'm1', documentId: 'n1', text: 'answer' }, 'note', { requestToken: token, baseContent: 'base' });
+    const accepted = rejection === 'none';
+    assert.equal(result.accepted, accepted, rejection);
+    assert.equal(result.applied, accepted ? 'note' : '', rejection);
+    assert.equal(messages[0].applied, accepted ? 'note' : '', rejection);
+    assert.deepEqual(dirty, accepted ? [true] : [], rejection);
+    assert.equal(toasts.length, accepted ? 1 : 0, rejection);
+    assert.equal(state.content.includes('answer'), accepted, rejection);
+    if (rejection === 'content' || rejection === 'token' || rejection === 'generation') {
+      const manual = api.writeAssistantIntoNote({ id: 'm1', documentId: 'n1', text: 'answer' }, 'note');
+      assert.equal(manual.accepted, true, 'explicit user write does not depend on expired automatic token');
+      assert.equal(messages[0].applied, 'note');
+      if (rejection === 'content') assert.equal(state.content, 'queued edit\nanswer');
+    }
+  }
+});
+
+test('真实 React 提交及 StrictMode：显式写入合并排队正文，自动拒绝后仍可重试', { timeout: 60000 }, async () => {
+  const require = createRequire(import.meta.url);
+  const updateCode = source.slice(source.indexOf('  function update(patch,'), source.indexOf('  function openLinkedNote('));
+  const writeCode = source.slice(source.indexOf('  function writeAssistantIntoNote('), source.indexOf('  function updateQaField('));
+  const mergeCode = source.slice(source.indexOf('function mergeAppliedFields('), source.indexOf('export function formatNoteAttachmentSize('));
+  const captureCode = readFileSync(resolve(appRoot, 'src/workspace/note-capture.js'), 'utf8').replace(/^export /gm, '');
+  // Electron is already a project dependency: exercise React DOM's real update
+  // queue (including StrictMode replay), rather than emulating setState/flushSync.
+  const renderer = `(() => {
+    const React = require(${JSON.stringify(require.resolve('react'))});
+    const { createRoot } = require(${JSON.stringify(require.resolve('react-dom/client'))});
+    const { flushSync } = require(${JSON.stringify(require.resolve('react-dom'))});
+    const assert = require('node:assert/strict');
+    ${captureCode}
+    ${mergeCode}
+    let count = 0;
+    for (const strict of [false, true]) for (const kind of ['note', 'problem']) {
+      for (const fields of ['note', 'pitfall', 'resolution', 'both']) {
+        for (const scenario of ['explicit', 'content', 'token', 'generation', 'document', 'attachment', 'automatic']) {
+          const base = kind === 'problem'
+            ? serializeQaNote({ question: 'old question', resolution: 'old resolution', pitfall: 'old pitfall', extra: '## Extra\\nold extra' }) : 'base';
+          const edited = kind === 'problem'
+            ? serializeQaNote({ question: 'queued question', resolution: 'queued resolution', pitfall: 'queued pitfall', extra: '## Extra\\nqueued extra' }) : 'queued edit';
+          const initial = { id: 'n1', content: base, artifactKind: kind };
+          let api, committed, valid = true, generation = 1;
+          const token = { generation: 1 };
+          const toasts = [];
+          let dirtyCalls = 0;
+          function Harness() {
+            const [draft, setDraft] = React.useState(initial);
+            const [dirty, setDirtyState] = React.useState(false);
+            const [saveError, setSaveError] = React.useState('previous error');
+            const [messages, setAssistantThread] = React.useState([{ id: 'm1', applied: '' }]);
+            const draftRef = React.useRef(draft);
+            draftRef.current = draft;
+            const attachmentBusyRef = React.useRef(scenario === 'attachment' ? 'image' : '');
+            const assistantRequestRef = React.useRef({ isCurrent: t => valid && t === token && t.generation === generation });
+            const aiRequestRef = React.useRef({ isCurrent: () => false });
+            const setDirty = value => { dirtyCalls++; setDirtyState(value); };
+            const onToast = text => toasts.push(text);
+            ${updateCode}
+            ${writeCode}
+            api = { setDraft, writeAssistantIntoNote, attachmentBusyRef };
+            React.useLayoutEffect(() => { committed = { draft, dirty, saveError, messages }; });
+            return React.createElement('pre', null, draft.content);
+          }
+          const container = document.createElement('div');
+          document.body.appendChild(container);
+          const root = createRoot(container);
+          flushSync(() => root.render(strict ? React.createElement(React.StrictMode, null, React.createElement(Harness)) : React.createElement(Harness)));
+          let result;
+          const message = { id: 'm1', documentId: 'n1', text: 'answer' };
+          flushSync(() => {
+            // The first update can be evaluated eagerly; the second must remain
+            // queued, while draftRef still points at the committed old render.
+            api.setDraft(current => ({ ...current, title: 'queued title' }));
+            if (scenario === 'explicit' || scenario === 'content') api.setDraft(current => ({ ...current, content: edited }));
+            if (scenario === 'document') api.setDraft(current => ({ ...current, id: 'n2' }));
+            if (scenario === 'token') valid = false;
+            if (scenario === 'generation') generation++;
+            result = api.writeAssistantIntoNote(message, fields, scenario === 'explicit' ? {} : { requestToken: token, baseContent: base });
+          });
+          const accepted = scenario === 'explicit' || scenario === 'automatic';
+          const expectedFields = kind === 'problem' && fields !== 'note' ? fields : 'note';
+          const expectedContent = content => expectedFields === 'note'
+            ? appendAssistantAnswerToNote(content, 'answer')
+            : applyAssistantAnswerToProblemNote({ content, question: parseQaNote(content).question, answer: 'answer', fields });
+          assert.equal(result.accepted, accepted, [strict, kind, fields, scenario].join('/'));
+          assert.equal(result.applied, accepted ? expectedFields : '');
+          assert.equal(committed.messages[0].applied, accepted ? expectedFields : '');
+          assert.equal(committed.dirty, accepted);
+          assert.equal(dirtyCalls, accepted ? 1 : 0);
+          assert.equal(toasts.length, accepted ? 1 : 0);
+          assert.equal(committed.saveError, accepted ? '' : 'previous error');
+          const preceding = scenario === 'explicit' || scenario === 'content' ? edited : base;
+          assert.equal(committed.draft.content, accepted ? expectedContent(preceding) : preceding);
+          assert.equal(container.textContent, committed.draft.content);
+          if (['content', 'token', 'generation', 'attachment'].includes(scenario)) {
+            api.attachmentBusyRef.current = '';
+            // The explicit retry itself also encounters a fresh queued edit.
+            flushSync(() => {
+              api.setDraft(current => ({ ...current, title: 'retry title' }));
+              api.setDraft(current => ({ ...current, content: edited }));
+              result = api.writeAssistantIntoNote(message, fields);
+            });
+            assert.equal(result.accepted, true);
+            assert.equal(committed.draft.content, expectedContent(edited));
+            assert.equal(committed.messages[0].applied, expectedFields);
+            assert.equal(dirtyCalls, 1);
+            assert.equal(toasts.length, 1);
+          }
+          flushSync(() => root.unmount());
+          container.remove();
+          count++;
+        }
+      }
+    }
+    return count;
+  })()`;
+  const directory = mkdtempSync(resolve(tmpdir(), 'notes-react-'));
+  const entry = resolve(directory, 'main.cjs');
+  writeFileSync(entry, `const { app, BrowserWindow } = require('electron');
+    app.whenReady().then(async () => {
+      const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false } });
+      await win.loadURL('about:blank');
+      const count = await win.webContents.executeJavaScript(${JSON.stringify(renderer)});
+      console.log('NOTES_REACT_CASES=' + count);
+      app.exit(0);
+    }).catch(error => { console.error(error.stack); app.exit(1); });`);
+  try {
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+    const { stdout } = await promisify(execFile)(require('electron'), [entry, '--no-sandbox'], { env, timeout: 45000, windowsHide: true });
+    assert.match(stdout, /NOTES_REACT_CASES=112/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('自动助手和帮写调用方只按 accepted 结果发布已写入状态', () => {
+  assert.match(source, /applied = writeResult\?\.accepted \? writeResult\.applied : ''/);
+  assert.match(source, /if \(!result\?\.accepted\) return;\s*setAiWriter/);
+  assert.match(source, /requestController: assistantRequestRef\.current/);
+});
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
@@ -115,8 +293,16 @@ test('NotesModule 复用 smart-writing API，合并可验证来源，并防止�
   assert.match(source, /skillId: 'smart-writing'/);
   assert.match(source, /mergeNoteSourceRefs\(draft\.sourceRefs, aiWriter\.citations\)/);
   assert.match(source, /sourceRefs: snapshot\.sourceRefs/);
-  assert.match(source, /editRevisionRef/);
-  assert.match(source, /saveRequestRef/);
+  assert.match(source, /createDocumentSaveController/);
+  assert.match(source, /NOTE_SAVE_DEBOUNCE_MS/);
+  assert.match(source, /prepareDocumentSwitch/);
+  assert.match(source, /saveControllerRef\.current\.retry\(draft\.id\)/);
+  assert.match(source, /jsonBodyWithBaseVersion/);
+  assert.match(source, /requireSavedRecord\(data, 'note'/);
+  assert.match(source, /acceptBaseline\(next\.id, next\)/);
+  assert.match(source, /registerWorkspaceSaveGuard/);
+  assert.match(source, /controller\.flushAll\(\)/);
+  assert.match(source, /baseVersion: note\?\.baseVersion \?\? note\?\.contentVersionId/);
   assert.match(source, /保存失败，笔记仍保留在当前页面/);
   assert.match(source, /生成期间笔记内容已经变化/);
   assert.match(source, /结果先预览，不会直接覆盖笔记/);

@@ -39,10 +39,10 @@ Expected branch: codex/ima-feishu-replica. Expected installer SHA256: 09B243649C
 12. Sync-OCR completeness fix (`app/server/sync-ocr.mjs`): image attachments from Feishu sync are OCR-extracted into the owning document with stable anchors, original chunks preserved, per-attachment dedupe and warnings; verified by `tests/sync-ocr.test.mjs` and included in `/api/sync` response as `ocrImport`.
 13. Real Feishu sync with user-provided credentials (encrypted secret store, default data directory): target document fully absorbed as text (505k chars, 19 sections, versioned), high-intensity verification green (search/relations/graph/summary); model chat surfaced upstream insufficient-balance; 16 media assets blocked by Feishu scope 403 and recorded as `assetWarnings`.
 
-## Immediate action
-- Continue deep optimization: problem records, embedded browser clip-to-note, in-note assistant write-back. Do not reset user data.
-- Real server may still be on 127.0.0.1:8789 with the user's encrypted credentials.
-- Model account balance may still be exhausted; degrade honestly to local retrieval/skill output.
+## 2026-09-09 1.3.1 公开发布交接
+- 源码、README、Windows 安装包和便携版按 1.3.1 发布到 `lyqi712/flowmind-feishu`。
+- 公开仓库排除：本机密钥/知识库、`evidence/` 验收截图、IMA 逆向材料、180MB+ 安装器二进制（安装器只放 GitHub Release）。
+- 下一步：优先真实模型+真实导入任务评测和编辑器体验，不新增顶层导航。
 
 ## Latest engineering gates (2026-09-03 Asia/Shanghai)
 - `cd app && node --test tests/*.test.mjs`: `783/783`, `skipped 0`.

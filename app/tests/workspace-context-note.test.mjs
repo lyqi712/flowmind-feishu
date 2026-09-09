@@ -61,7 +61,7 @@ test('Ctrl+K 与 Context 创建笔记直接 POST、打开持久化 Tab 并 deep-
     'setNoteDeepLinkId(noteId)',
     "kind: 'note', type: 'note', route: 'notes', noteId",
     'initialNoteId={tab?.noteId || noteDeepLinkId}',
-    'onCreateNote={handleWorkspaceCreateNote}'
+    'onCreateNote={context => guardWorkspaceNavigation(() => handleWorkspaceCreateNote(context))}'
   ]) assert.ok(mainSource.includes(fragment), `missing ${fragment}`);
   assert.doesNotMatch(mainSource, /已打开笔记工作区，可新建笔记并附加来源/);
   assert.doesNotMatch(mainSource, /return writeSourceNote\(readerDetail\.item\)/);
@@ -89,6 +89,6 @@ test('Context command persists a writing draft and deep-links its Writing tab', 
     'setWritingDeepLinkId(draftId)',
     "route: 'writing', draftId",
     'initialDraftId={tab?.draftId || writingDeepLinkId}',
-    'onCreateWriting={handleWorkspaceCreateWriting}'
+    'onCreateWriting={context => guardWorkspaceNavigation(() => handleWorkspaceCreateWriting(context))}'
   ]) assert.ok(mainSource.includes(fragment), `missing ${fragment}`);
 });

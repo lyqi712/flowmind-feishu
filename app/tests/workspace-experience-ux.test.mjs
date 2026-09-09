@@ -34,7 +34,7 @@ test('opening a search result yields the workspace and keeps a return path to th
 test('工作区搜索面板接到真实结果，首页提问不锁上次打开的文档', () => {
   assert.match(mainSource, /search=\{workspaceSearch\}/);
   assert.match(mainSource, /onCloseSearch=\{closeWorkspaceSearch\}/);
-  assert.match(mainSource, /onOpenSearchResult=\{openWorkspaceSearchResult\}/);
+  assert.match(mainSource, /onOpenSearchResult=\{item => guardWorkspaceNavigation\(\(\) => openWorkspaceSearchResult\(item\)\)\}/);
   assert.match(mainSource, /onReopenSearch=\{reopenWorkspaceSearch\}/);
   assert.match(mainSource, /onOpenSearch=\{openWorkspaceSearchPanel\}/);
   const askBlock = mainSource.slice(mainSource.indexOf('function handleWorkspaceAsk'), mainSource.indexOf('function readerWorkspaceContext'));
@@ -78,11 +78,12 @@ test('搜索结果摘要剥 Markdown，并按文档/笔记/会话筛选', () => 
   assert.doesNotMatch(workspaceSource, /<small>\{result\.excerpt \|\| '没有可预览的内容'\}<\/small>/);
 });
 
-test('笔记有内容时打开最近一篇，空列表才显示欢迎页', () => {
+test('笔记有内容时打开最近一篇，空库直接铺一张白纸', () => {
   const loadBlock = notesSource.slice(notesSource.indexOf('async function load(nextArchived = archived)'), notesSource.indexOf('useEffect(() => { load(archived); }, [archived]);'));
   assert.match(loadBlock, /pickOpenNote\(list, \{ preferredId: initialNoteId, selectedId \}\)/);
-  assert.match(notesSource, /<ModuleWelcome icon=\{NotebookPen\} title="记下这次容易忘的点"/);
-  assert.match(notesSource, /action=\{\(\) => createNote\('problem'\)\} actionLabel="新建问题记录"/);
+  assert.match(loadBlock, /shouldCreateBlankNotePage\(list, \{ archived: nextArchived \}\)/);
+  assert.match(notesSource, /blankNoteDraft\(\)/);
+  assert.doesNotMatch(notesSource, /ModuleWelcome/);
 });
 
 test('after a sync the app selects the library that actually contains documents', () => {

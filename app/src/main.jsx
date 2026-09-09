@@ -21,11 +21,15 @@ import { restoredReaderChat } from './workspace/reader-conversation.js';
 import { applySkillReasoningEvent, shouldShowReasoningChain } from './workspace/reasoning-chain.js';
 import { buildWorkspaceContextNote, buildWorkspaceContextWritingDraft, deriveWorkspaceContext, deriveWorkspaceHomeItems, workspaceTaskRoute } from './workspace/workspace-integrations.js';
 import { buildSourceNoteContent, buildSourceNoteTitle, problemNoteDraft } from './workspace/note-capture.js';
+import { buildSelectionAskPrompt } from './workspace/note-page.js';
+import { buildPageAskContext, normalizePageAskSelection } from './workspace/page-architecture.js';
 import { appendWebClipToProblemContent, createWebWorkspaceTab, mergeNoteSourceRefs, normalizeClientBrowseUrl, pickProblemNoteForWebClip, problemNoteFromWebClip, webClipSourceRef } from './workspace/web-browse.js';
 import { humanizeSourceLabel, searchResultType } from './workspace/display-text.js';
 import { isLibraryNote, isNotesLibrary, libraryFileKind, libraryFileLabel } from './workspace/knowledge-file.js';
 import { hasSubstantiveEvidenceAnalysis, stripTemplatedAnswerSections } from '../shared/answer-text.mjs';
 import { retryChatRequest } from './workspace/chat-retry.js';
+import { buildWorkspaceSearchUrl } from './workspace/search-filters.js';
+import { runAfterWorkspaceSave } from './workspace/workspace-save-guard.js';
 import { consumeFeishuLoginQuery, startFeishuUserLogin } from './workspace/feishu-login.js';
 import { EvidenceStatusBadge } from './components/EvidenceStatus.jsx';
 import { injectCitationNodes } from './components/CitationTooltip.jsx';
@@ -1200,13 +1204,7 @@ function App() {
       : context;
     setGraphOpen(false);
     const documentIds = contextDocumentIds(askContext);
-    const selection = askContext?.selection ? {
-      documentId: String(askContext.selection.documentId || askContext.selection.sourceId || askContext.currentDocument?.documentId || askContext.currentDocument?.id || ''),
-      quote: String(askContext.selection.quote || askContext.selection.text || '').trim(),
-      anchor: askContext.selection.anchor || null,
-      startOffset: askContext.selection.startOffset,
-      endOffset: askContext.selection.endOffset
-    } : null;
+    const selection = normalizePageAskSelection(askContext.currentDocument, askContext.selection);
     setReaderDetail(null);
     const tab = createChatWorkspaceTab({
       title: String(prompt || askContext.currentDocument?.title || 'AI 问答').slice(0, 26),
@@ -1226,14 +1224,7 @@ function App() {
   }
 
   function readerAskSelection(item, selection = null) {
-    if (!selection?.quote && !selection?.text) return null;
-    return {
-      documentId: String(selection.documentId || selection.sourceId || item?.id || ''),
-      quote: String(selection.quote || selection.text || '').trim(),
-      anchor: selection.anchor || null,
-      startOffset: selection.startOffset,
-      endOffset: selection.endOffset
-    };
+    return normalizePageAskSelection(item, selection);
   }
 
   function handleStopReaderAsk() {
@@ -1294,7 +1285,7 @@ function App() {
     setQuery('');
   }
 
-  function handleWorkspaceAskAboutNote(note, prompt = '') {
+  function handleWorkspaceAskAboutNote(note, prompt = '', selection = null) {
     if (!note?.id) return;
     const noteId = String(note.id);
     const resources = (Array.isArray(note.sourceRefs) ? note.sourceRefs : []).map((ref, index) => ({
@@ -1304,18 +1295,9 @@ function App() {
       documentId: ref.documentId || ref.contentItemId || '',
       title: ref.title || '来源文档'
     })).filter(item => item.documentId || item.title);
-    handleWorkspaceAsk(prompt, {
-      currentDocument: {
-        id: noteId,
-        documentId: noteId,
-        noteId,
-        title: note.title || '笔记',
-        type: 'note',
-        source: '笔记'
-      },
-      selection: null,
-      resources
-    });
+    const context = buildPageAskContext({ ...note, id: noteId, type: 'note', noteId, source: '笔记' }, { selection, resources });
+    const text = String(prompt || '').trim() || (context.selection?.quote ? buildSelectionAskPrompt(context.selection.quote) : '');
+    handleWorkspaceAsk(text, context);
   }
 
   function handleReaderAsk(prompt, item, selection = null) {
@@ -1476,14 +1458,14 @@ function App() {
     dispatchWorkspace({ type: 'SET_READING_POSITION', resourceId: source.id, position: { ...position, updatedAt: new Date().toISOString() } });
   }
 
-  async function handleWorkspaceSearch(text) {
+  async function handleWorkspaceSearch(text, options = {}) {
     const value = String(text || '').trim();
     if (!value) return;
     const requestId = workspaceSearchRequestRef.current + 1;
     workspaceSearchRequestRef.current = requestId;
     setWorkspaceSearch({ open: true, query: value, results: [], total: 0, limited: false, busy: true, error: '', originTabId: '' });
     try {
-      const data = await fetch(`/api/search?q=${encodeURIComponent(value)}&limit=40`).then(parseResponse);
+      const data = await fetch(buildWorkspaceSearchUrl(value, options)).then(parseResponse);
       if (requestId !== workspaceSearchRequestRef.current) return;
       setWorkspaceSearch({ open: true, query: value, results: Array.isArray(data.results) ? data.results : [], total: Number(data.total || 0), limited: Boolean(data.limited), busy: false, error: '', originTabId: '' });
     } catch (error) {
@@ -1633,7 +1615,7 @@ function App() {
         const data = await fetch(`/api/notes/${targetNote.id}`, {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ content, sourceRefs })
+          body: JSON.stringify({ content, sourceRefs, baseVersion: targetNote.contentVersionId })
         }).then(parseResponse);
         notify(`已剪进问题记录：${data.note.title}`);
         return data.note;
@@ -1652,7 +1634,7 @@ function App() {
     }
   }
 
-  async function handleSmartSearch(query) {
+  async function handleSmartSearch(query, category = 'all') {
     if (!query?.trim()) return;
     setSearchHistory(current => {
       const value = query.trim();
@@ -1660,7 +1642,7 @@ function App() {
       return [{ query: value, timestamp: Date.now(), resultCount: 0 }, ...filtered].slice(0, 20);
     });
     setSmartSearchOpen(false);
-    await handleWorkspaceSearch(query);
+    await handleWorkspaceSearch(query, { category });
   }
 
   async function handleSmartSearchOpenDocument(documentOrSuggestion) {
@@ -1969,6 +1951,9 @@ function App() {
           body: file
         }).then(parseResponse);
         const warning = data.warnings?.[0]?.message;
+        if (data.ok === false || Number(data.stats?.failed || 0) > 0 || !data.items?.[0]?.item?.id) {
+          throw new Error(data.error?.message || warning || '文件未生成可检索内容，请检查后重试');
+        }
         items.push({ name: file.name, status: 'success', message: warning || (data.stats?.duplicates ? '内容已存在，已关联来源' : '已解析并加入知识库'), item: data.items?.[0]?.item });
         dispatchWorkspace({ type: 'UPDATE_TASK', taskId, patch: { status: 'completed', progress: 1, detail: warning || '已解析并加入知识库', resultId: data.items?.[0]?.item?.id, updatedAt: new Date().toISOString() } });
       } catch (error) {
@@ -1992,6 +1977,7 @@ function App() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ items: [{ title, content, contentType: 'markdown' }] })
       }).then(parseResponse);
+      if (data.ok === false || !data.items?.[0]?.item?.id) throw new Error(data.error?.message || data.warnings?.[0]?.message || '文本未保存，请重试');
       dispatchWorkspace({ type: 'UPDATE_TASK', taskId, patch: { status: 'completed', progress: 1, detail: '已进入知识库', resultId: data.items?.[0]?.item?.id, updatedAt: new Date().toISOString() } });
       await enterKnowledgeAfterCollection(`「${title}」已加入知识库`);
       return { ...data, ok: true, message: '文本已进入知识库，可以立即查看和提问。' };
@@ -2922,6 +2908,17 @@ function App() {
     } catch (error) { notify(errText(error, '模型配置保存失败'), 'error'); }
     finally { setModelBusy(''); }
   }
+  async function guardWorkspaceNavigation(action) {
+    try {
+      const result = await runAfterWorkspaceSave(action);
+      if (!result.ok) notify(result.error, 'error');
+      return result;
+    } catch (error) {
+      notify(errText(error, '保存尚未完成，已保留当前页面'), 'error');
+      return { ok: false };
+    }
+  }
+
   function selectNavigation(id) {
     if (id === 'evidence') {
       openEvidenceWorkbench();
@@ -2969,24 +2966,24 @@ function App() {
       context={workspaceContext}
       renderActiveTab={tab => <WorkspaceSurfaceErrorBoundary resetKey={tab?.id || String(active || '')}>{renderWorkspaceTab(tab)}</WorkspaceSurfaceErrorBoundary>}
       onPrefetch={route => { void preloadWorkspaceRoute(route); }}
-      onOpenRecent={handleOpenRecent}
-      onActivateTab={activateWorkspaceTab}
-      onCloseTab={closeWorkspaceTab}
-      onNewTab={() => { createChatWorkspaceTab({ title: '新对话' }); }}
+      onOpenRecent={item => guardWorkspaceNavigation(() => handleOpenRecent(item))}
+      onActivateTab={tab => guardWorkspaceNavigation(() => activateWorkspaceTab(tab))}
+      onCloseTab={tab => guardWorkspaceNavigation(() => closeWorkspaceTab(tab))}
+      onNewTab={() => { void guardWorkspaceNavigation(() => createChatWorkspaceTab({ title: '新对话' })); }}
       onSearch={handleWorkspaceSearch}
       onOpenSearch={openWorkspaceSearchPanel}
       search={workspaceSearch}
       onCloseSearch={closeWorkspaceSearch}
-      onOpenSearchResult={openWorkspaceSearchResult}
+      onOpenSearchResult={item => guardWorkspaceNavigation(() => openWorkspaceSearchResult(item))}
       onReopenSearch={reopenWorkspaceSearch}
       onAsk={handleWorkspaceAsk}
       onCollect={() => { void preloadWorkspaceSurface('collection'); setCollectionOpen(true); }}
-      onCreateNote={handleWorkspaceCreateNote}
-      onCreateProblemNote={handleWorkspaceCreateProblemNote}
-      onOpenWeb={handleOpenWeb}
-      onCreateWriting={handleWorkspaceCreateWriting}
+      onCreateNote={context => guardWorkspaceNavigation(() => handleWorkspaceCreateNote(context))}
+      onCreateProblemNote={context => guardWorkspaceNavigation(() => handleWorkspaceCreateProblemNote(context))}
+      onOpenWeb={url => guardWorkspaceNavigation(() => handleOpenWeb(url))}
+      onCreateWriting={context => guardWorkspaceNavigation(() => handleWorkspaceCreateWriting(context))}
       onRunSkill={handleWorkspaceRunSkill}
-      onNavigate={selectNavigation}
+      onNavigate={id => guardWorkspaceNavigation(() => selectNavigation(id))}
       onOpenTask={handleOpenTask}
       onRetryTask={handleRetryTask}
       onAttachContext={handleAttachContext}
@@ -3012,7 +3009,7 @@ function App() {
     </button>
 
     {collectionOpen && <Suspense fallback={<WorkspaceRouteFallback label="收集中心" overlay/>}><CollectionCenter open={collectionOpen} onClose={() => setCollectionOpen(false)} onOpenFeishu={openFeishuExperience} onImportFiles={importCollectionFiles} onImportText={importCollectionText} onOpenWeb={url => { const tab = handleOpenWeb(url); if (tab) setCollectionOpen(false); }} onOpenLibrary={() => { setCollectionOpen(false); openWorkspaceModule('knowledge'); }}/></Suspense>}
-    {showSync && <Suspense fallback={<WorkspaceRouteFallback label="飞书同步" overlay/>}><FeishuSyncWizard onClose={() => setShowSync(false)} onState={next => { setState(next); refreshContentItems().catch(error => notify(errText(error, '同步完成但内容列表刷新失败'), 'error') || []).then(items => setSelectedKb(resolveLibraryAfterSync(next, items))); }} onToast={notify} currentSync={state.sync}/></Suspense>}
+    {showSync && <Suspense fallback={<WorkspaceRouteFallback label="飞书同步" overlay/>}><FeishuSyncWizard onClose={() => setShowSync(false)} onState={next => { setState(next); setKnowledgeIntent('browse'); void refreshContentItems().catch(error => notify(errText(error, '同步完成但内容列表刷新失败'), 'error') || []).then(items => { setSelectedKb(resolveLibraryAfterSync(next, items)); openWorkspaceModule('knowledge'); }); }} onToast={notify} currentSync={state.sync}/></Suspense>}
     {modelDrawerOpen && <ModelDrawer form={modelForm} setForm={setModelForm} provider={providerById(modelForm.provider)} updateProvider={updateProvider} models={modelOptions} busy={modelBusy} showApiKey={showApiKey} setShowApiKey={setShowApiKey} refreshModels={refreshModels} testModel={testModel} saveModel={saveModel} close={() => setModelDrawerOpen(false)}/>}
     {toast && <div className={`toast ${toast.kind || ''}`} role={toast.kind === 'error' ? 'alert' : 'status'} aria-live={toast.kind === 'error' ? 'assertive' : 'polite'} aria-atomic="true">{toast.kind === 'error' ? <AlertCircle size={16}/> : <CircleCheck size={16}/>}<span>{toast.message}</span></div>}
   </div>;
@@ -3085,7 +3082,7 @@ function KnowledgeSidebar({ state, selectedKb, setSelectedKb, docs, selectedDocs
     <div className="search-box"><Search size={15}/><input name="knowledge-document-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="搜索文档"/></div>
     {allTags.length ? <div className="tag-filter" role="list" aria-label="按标签筛选">{allTags.slice(0, 16).map(tag => <button type="button" key={tag} role="listitem" className={activeTag === tag ? 'active' : ''} aria-pressed={activeTag === tag} onClick={() => setActiveTag(current => current === tag ? '' : tag)}>{tag}</button>)}</div> : null}
     <section className="side-section library-section">
-      <div className="section-label"><span>知识空间</span><div className="section-actions"><button onClick={() => onRefreshLibraries?.()} disabled={libraryBusy} title="刷新共享库"><RefreshCw className={libraryBusy ? 'spin' : ''} size={13}/></button><button onClick={() => setShowSync(true)} title="同步内容"><Plus size={14}/></button></div></div>
+      <div className="section-label"><span>知识空间</span><div className="section-actions"><button onClick={() => onRefreshLibraries?.()} disabled={libraryBusy} title="刷新共享库"><RefreshCw className={libraryBusy ? 'spin' : ''} size={13}/></button><button onClick={() => setShowSync(true)} title="同步内容" aria-label="同步内容"><Plus size={14}/></button></div></div>
       {showLibraryFilters ? <div className="library-filter" role="tablist" aria-label="知识库筛选">{[['all','全部'],['followed','已关注'],['shared','共享']].map(([id,label]) => <button key={id} role="tab" aria-selected={libraryFilter === id} className={libraryFilter === id ? 'active' : ''} onClick={() => setLibraryFilter(id)}>{label}</button>)}</div> : null}
       <div className="library-list">{visibleLibraries.length ? visibleLibraries.map(item => <div key={item.id} className={`kb-row ${selectedKb === item.id ? 'active' : ''}`}>
         <button type="button" className="kb-select" onClick={() => onSelectLibrary?.(item)}><span className="kb-icon">{item.shared ? <Globe2 size={16}/> : <BookOpen size={16}/>}</span><span><b>{item.name}</b><small>{item.documentCount ?? 0} 篇文档 · {visibilityLabel(item)}</small></span></button>
@@ -3203,7 +3200,6 @@ function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessage
       { id: 'actions', kind: 'actions', label: '常用动作', items: [
         { id: 'action-add-file', type: 'action', action: 'add-file', label: '添加文件或截图', description: '上传后直接问答或写入笔记', icon: 'attachment' },
         { id: 'action-problem-note', type: 'action', action: 'problem-note', label: '记下问题', description: '只记这次容易忘的点', icon: 'note' },
-        { id: 'action-analysis', type: 'action', action: 'analysis', label: '文档解读', description: '打开当前文件继续读', icon: 'document' },
         { id: 'action-new-chat', type: 'action', action: 'new-chat', label: '新对话', description: '清空临时上下文再问', icon: 'sparkles' }
       ] }
     ];
@@ -3295,7 +3291,7 @@ function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessage
   const showScopeStrip = !showBrowseGuide && (selectedDocs.length > 0 || (readyCount > 0 && !includeKnowledgeBase));
 
   return <main className={`workspace chat-workspace${browseMode ? ' is-browse-mode' : ''}`} data-browse-mode={browseMode ? 'true' : undefined}>
-    {showBrowseGuide ? null : <header className="workspace-head"><div className="workspace-title"><div><strong>{activeCopilot?.name || '对话'}</strong></div></div><div className="head-actions"><button type="button" onClick={() => onNewConversation?.()} aria-label="新会话"><Plus size={16}/>新会话</button><div className={`message-more ${chatMoreOpen ? 'is-open' : ''}`}><button type="button" className="message-more-toggle" aria-label="更多对话设置" aria-expanded={chatMoreOpen} onClick={() => setChatMoreOpen(current => !current)}><MoreHorizontal size={16}/></button>{chatMoreOpen ? <div className="message-more-menu" role="menu">{copilots.length ? <label className="copilot-chip"><span aria-hidden="true">{activeCopilot?.avatar || '✨'}</span><select value={activeCopilot?.id || ''} onChange={event => onSelectCopilot?.(event.target.value)} aria-label="当前 Copilot">{copilots.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button type="button" onClick={() => { onOpenCopilots?.(); setChatMoreOpen(false); }} aria-label="配置 Copilot"><Settings size={14}/></button></label> : null}<button type="button" role="menuitem" onClick={() => { openModelDrawer(); setChatMoreOpen(false); }}><Bot size={16}/><span className={`status-dot ${modelSettings.configured ? 'ok' : ''}`}/>{modelLabel(modelSettings)}</button><button type="button" role="menuitem" onClick={() => { setHistoryOpen(!historyOpen); setChatMoreOpen(false); }}>历史</button><button type="button" role="menuitem" onClick={() => { onOpenModule?.('analysis'); setChatMoreOpen(false); }}>文档解读</button><button type="button" role="menuitem" onClick={() => { onOpenModule?.('skills'); setChatMoreOpen(false); }}>Skill 工作台</button><button type="button" role="menuitem" onClick={() => { onOpenEvidence?.(); setChatMoreOpen(false); }}>证据工作台</button><button type="button" role="menuitem" onClick={() => { onCreateWriting?.(); setChatMoreOpen(false); }}>写作草稿</button><button type="button" role="menuitem" onClick={() => { onOpenModule?.('recording'); setChatMoreOpen(false); }}>录音纪要</button><button type="button" role="menuitem" onClick={() => { onOpenGraph?.(); setChatMoreOpen(false); }}>知识观察</button></div> : null}</div></div></header>}
+    {showBrowseGuide ? null : <header className="workspace-head"><div className="workspace-title"><div><strong>{activeCopilot?.name || '对话'}</strong></div></div><div className="head-actions"><button type="button" onClick={() => onNewConversation?.()} aria-label="新会话"><Plus size={16}/>新会话</button><div className={`message-more ${chatMoreOpen ? 'is-open' : ''}`}><button type="button" className="message-more-toggle" aria-label="更多对话设置" aria-expanded={chatMoreOpen} onClick={() => setChatMoreOpen(current => !current)}><MoreHorizontal size={16}/></button>{chatMoreOpen ? <div className="message-more-menu" role="menu">{copilots.length ? <button type="button" role="menuitem" onClick={() => { onOpenCopilots?.(); setChatMoreOpen(false); }}><span aria-hidden="true">{activeCopilot?.avatar || '✨'}</span>配置 Copilot</button> : null}<button type="button" role="menuitem" onClick={() => { openModelDrawer(); setChatMoreOpen(false); }}><Bot size={16}/><span className={`status-dot ${modelSettings.configured ? 'ok' : ''}`}/>{modelLabel(modelSettings)}</button><button type="button" role="menuitem" onClick={() => { setHistoryOpen(!historyOpen); setChatMoreOpen(false); }}>历史</button><div className="message-more-sep" aria-hidden="true"></div><button type="button" role="menuitem" onClick={() => { onOpenModule?.('analysis'); setChatMoreOpen(false); }}>文档解读</button><button type="button" role="menuitem" onClick={() => { onCreateWriting?.(); setChatMoreOpen(false); }}>写作草稿</button><button type="button" role="menuitem" onClick={() => { onOpenModule?.('recording'); setChatMoreOpen(false); }}>录音纪要</button><button type="button" role="menuitem" onClick={() => { onOpenGraph?.(); setChatMoreOpen(false); }}>知识观察</button></div> : null}</div></div></header>}
     <div className="context-strip" hidden={!showScopeStrip}><Tags size={15}/><span>这次问的范围</span><b>{selectedDocs.length ? `已选 ${selectedDocs.length} 篇资料` : readyCount > 0 && !includeKnowledgeBase ? '仅当前附件' : `「${kb?.name || '当前知识库'}」`}</b>{readyCount > 0 && <em>+ {readyCount} 个临时附件</em>}{readyCount > 0 && !selectedDocs.length && <button type="button" className="attachment-scope-toggle" aria-pressed={includeKnowledgeBase} onClick={() => onIncludeKnowledgeBaseChange(!includeKnowledgeBase)}>{includeKnowledgeBase ? '附件 + 全库' : '仅附件'}</button>}{selectedDocs.length > 0 && <button onClick={() => setSelectedDocs([])}>恢复全部</button>}<button type="button" className="context-scope-manager" aria-label="管理资料范围" onClick={() => setScopeOpen(true)}><LibraryBig size={13}/><span>管理范围</span></button></div>
     <div className="workspace-body"><div className="messages">
       {showBrowseGuide ? (
@@ -3329,6 +3325,7 @@ function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessage
           {message.artifact?.kind === 'problem' && message.artifact?.id ? <button type="button" className="answer-saved-note" onClick={() => onOpenWrittenArtifact?.(message.artifact)}><ListChecks size={13}/><span><small>{message.artifact.appended ? '已补进' : '已记下'}</small><b>{message.artifact.title || '问题记录'}</b></span></button> : null}
           {message.done && message.role === 'assistant' && message.text ? <div className="answer-version-actions">
             <button type="button" disabled={streaming || Boolean(artifactBusy)} aria-label={message.artifact?.kind === 'problem' ? '再把这次容易忘的点补进同一篇' : '把这次容易忘的点记下来'} onClick={() => onCreateArtifact?.('problem', message)}><ListChecks size={13}/>{message.artifact?.kind === 'problem' ? '再记一点' : '记这个问题'}</button>
+            <button type="button" disabled={streaming || Boolean(artifactBusy)} aria-label="将回答转为笔记" onClick={() => onCreateArtifact?.('note', message)}><NotebookPen size={13}/>转笔记</button>
             <button type="button" disabled={streaming} aria-label="复制回答" onClick={() => { void copyAnswerText(message.text).then(ok => { if (ok) { setCopiedMessageId(message.id || String(index)); window.setTimeout(() => setCopiedMessageId(current => current === (message.id || String(index)) ? '' : current), 1600); } }); }}>{copiedMessageId === (message.id || String(index)) ? '已复制' : '复制'}</button>
             <div className={`message-more ${openMessageMenu === (message.id || String(index)) ? 'is-open' : ''}`}>
               <button type="button" className="message-more-toggle" aria-label="更多操作" aria-expanded={openMessageMenu === (message.id || String(index))} onClick={() => setOpenMessageMenu(current => current === (message.id || String(index)) ? '' : (message.id || String(index)))}><MoreHorizontal size={14}/></button>

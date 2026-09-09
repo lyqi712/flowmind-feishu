@@ -104,7 +104,8 @@ test('分析师小林：解读写作录音从对话更多进入，斜杠不堆�
   assert.match(main, />写作草稿</);
   assert.match(main, /onOpenModule\?\.\('analysis'\)/);
   assert.match(main, /onOpenModule\?\.\('recording'\)/);
-  assert.match(main, /onOpenModule\?\.\('skills'\)/);
+  assert.doesNotMatch(main, /onOpenModule\?\.\('skills'\); setChatMoreOpen\(false\)/);
+  assert.doesNotMatch(main, /id: 'action-analysis'/);
 });
 
 test('空库人物问事实题时拒答，不拿常识顶替', async () => {

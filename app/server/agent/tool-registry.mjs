@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { fetchPublicHttp } from '../public-http.mjs';
 import { isProblemKnowledgeNote, pruneDocumentsForQuery, relaxedTitleSearch, searchDocuments, searchEvidenceChunks, softenRetrievalQuery } from '../retrieval.mjs';
 import { evidencePreconditions, resolveEvidence, sameEvidenceVersion, sourceRefFromEvidence } from './evidence.mjs';
 import { EXTENDED_TOOL_SCHEMAS, registerExtendedTools } from './extended-tools.mjs';
@@ -63,16 +64,16 @@ function toolError(code, message, status = 400) {
   return Object.assign(new Error(message), { code, status });
 }
 
-function isPublicHttpUrl(value) {
-  let parsed;
-  try { parsed = new URL(String(value || '')); } catch { return false; }
-  if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-  const host = parsed.hostname.toLowerCase();
-  if (host === 'localhost' || host.endsWith('.local') || host === '0.0.0.0') return false;
-  if (/^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return false;
-  if (host === '::1' || host.startsWith('fd') || host.startsWith('fe80')) return false;
-  return true;
-}
+const AGENT_WEB_FETCH_TIMEOUT_MS = 12000;
+const AGENT_WEB_FETCH_MAX_BYTES = 512 * 1024;
+const WEB_URL_FORBIDDEN_CODES = new Set([
+  'WEB_URL_FORBIDDEN',
+  'WEB_URL_PRIVATE',
+  'WEB_URL_PROTOCOL',
+  'WEB_URL_CREDENTIALS',
+  'WEB_URL_INVALID',
+  'WEB_URL_REQUIRED'
+]);
 
 function htmlToText(html = '') {
   return String(html || '')
@@ -292,6 +293,22 @@ function proposalFor(name, args, context) {
       },
       sourceRefs
     };
+  } else if (name === 'draft.update') {
+    const fileName = clean(args.fileName);
+    proposal = {
+      action: name,
+      diff: { before: null, after: args.content, path: `drafts/${args.draftId}.md` },
+      payload: {
+        draftId: args.draftId,
+        title: args.title,
+        content: args.content,
+        fileName,
+        language: clean(args.language),
+        kind: clean(args.kind),
+        sourceRefs
+      },
+      sourceRefs
+    };
   } else if (name === 'task.create') {
     proposal = {
       action: name,
@@ -420,6 +437,19 @@ export const TOOL_SCHEMAS = Object.freeze({
       evidenceIds: { type: 'array' }
     }
   },
+  'draft.update': {
+    type: 'object', additionalProperties: false, required: ['draftId', 'content'],
+    properties: {
+      draftId: { type: 'string', minLength: 1 },
+      title: { type: 'string' },
+      content: { type: 'string' },
+      fileName: { type: 'string' },
+      language: { type: 'string' },
+      kind: { type: 'string', enum: ['markdown', 'code', 'document', 'file'] },
+      sourceRefs: { type: 'array' },
+      evidenceIds: { type: 'array' }
+    }
+  },
   'task.create': {
     type: 'object', additionalProperties: false, required: ['title', 'content'],
     properties: { title: { type: 'string', minLength: 1 }, content: { type: 'string' }, sourceRefs: { type: 'array' }, evidenceIds: { type: 'array' } }
@@ -440,7 +470,7 @@ export const TOOL_SCHEMAS = Object.freeze({
 });
 
 export class ToolRegistry {
-  constructor({ getDocuments = () => [], contentRepository, graphIndex, writers = {}, mcpGateway = null, fileGateway = null, feishuGateway = null } = {}) {
+  constructor({ getDocuments = () => [], contentRepository, graphIndex, writers = {}, mcpGateway = null, fileGateway = null, feishuGateway = null, webGateway = null, fetchImpl = null, lookupImpl = null } = {}) {
     this.getDocuments = getDocuments;
     this.contentRepository = contentRepository || null;
     this.graphIndex = graphIndex || null;
@@ -448,6 +478,9 @@ export class ToolRegistry {
     this.mcpGateway = mcpGateway;
     this.fileGateway = fileGateway;
     this.feishuGateway = feishuGateway;
+    this.webGateway = webGateway;
+    this.fetchImpl = fetchImpl;
+    this.lookupImpl = lookupImpl;
     this.tools = new Map();
     this.registerBuiltIns();
     registerExtendedTools(this);
@@ -479,6 +512,7 @@ export class ToolRegistry {
     if (tool.name === 'note.create' || tool.name === 'decision.note.create') return { available: typeof this.writers.createNote === 'function', reason: 'Note writing is not configured' };
     if (tool.name === 'note.update') return { available: typeof this.writers.updateNote === 'function', reason: 'Note updating is not configured' };
     if (tool.name === 'draft.create') return { available: typeof this.writers.createDraft === 'function', reason: 'Draft writing is not configured' };
+    if (tool.name === 'draft.update') return { available: typeof this.writers.updateDraft === 'function', reason: 'Draft updating is not configured' };
     if (tool.name === 'task.create') return { available: typeof this.writers.createTask === 'function', reason: 'Task writing is not configured' };
     if (tool.name === 'graph.append-link') return { available: typeof this.writers.appendGraphLink === 'function', reason: 'Graph link writing is not configured' };
     if (tool.name === 'feishu.document.create') {
@@ -591,6 +625,10 @@ export class ToolRegistry {
     if (action === 'draft.create') {
       if (typeof this.writers.createDraft !== 'function') throw toolError('WRITE_CAPABILITY_UNAVAILABLE', 'Draft writing is not configured', 501);
       return this.writers.createDraft(payload, context);
+    }
+    if (action === 'draft.update') {
+      if (typeof this.writers.updateDraft !== 'function') throw toolError('WRITE_CAPABILITY_UNAVAILABLE', 'Draft updating is not configured', 501);
+      return this.writers.updateDraft(payload, context);
     }
     if (action === 'task.create') {
       if (typeof this.writers.createTask !== 'function') throw toolError('WRITE_CAPABILITY_UNAVAILABLE', 'Task writing is not configured', 501);
@@ -834,27 +872,34 @@ export class ToolRegistry {
       name: 'web.fetch', effect: 'read', schema: TOOL_SCHEMAS['web.fetch'],
       description: 'Fetch a public http(s) page and return readable text so the agent can read web docs without asking the user to copy-paste.',
       execute: async ({ url, maxChars = 8000 }) => {
-        if (!isPublicHttpUrl(url)) throw toolError('WEB_URL_FORBIDDEN', 'Only public http(s) URLs can be fetched', 400);
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 12000);
+        const limit = Math.max(200, Math.min(20000, Number(maxChars) || 8000));
+        const options = {
+          fetchImpl: this.fetchImpl || undefined,
+          lookupImpl: this.lookupImpl || undefined,
+          timeoutMs: AGENT_WEB_FETCH_TIMEOUT_MS,
+          maxBytes: AGENT_WEB_FETCH_MAX_BYTES,
+          headers: { 'user-agent': 'FlowMind/1.2 (knowledge-agent)' }
+        };
         try {
-          const response = await fetch(url, { signal: controller.signal, redirect: 'follow', headers: { 'user-agent': 'FlowMind/1.2 (knowledge-agent)' } });
-          const raw = await response.text();
-          const contentType = String(response.headers.get('content-type') || '');
-          const text = contentType.includes('html') ? htmlToText(raw) : String(raw || '').replace(/\s+/g, ' ').trim();
-          const limit = Math.max(200, Math.min(20000, Number(maxChars) || 8000));
+          const page = this.webGateway?.fetch
+            ? await this.webGateway.fetch(url, options)
+            : await fetchPublicHttp(url, options);
+          const raw = page.buffer.toString('utf8');
+          const contentType = String(page.response.headers?.get?.('content-type') || '');
+          const text = /html/i.test(contentType) ? htmlToText(raw) : String(raw || '').replace(/\s+/g, ' ').trim();
           return {
-            url: response.url || url,
-            status: response.status,
+            url: page.url?.href || page.response.url || url,
+            status: page.response.status,
             contentType,
             title: (raw.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 160),
             text: text.slice(0, limit),
             truncated: text.length > limit
           };
         } catch (error) {
+          if (WEB_URL_FORBIDDEN_CODES.has(error?.code)) {
+            throw toolError('WEB_URL_FORBIDDEN', 'Only public http(s) URLs can be fetched', 400);
+          }
           throw toolError('WEB_FETCH_FAILED', error?.message || 'Failed to fetch URL', 502);
-        } finally {
-          clearTimeout(timer);
         }
       }
     });
@@ -862,7 +907,8 @@ export class ToolRegistry {
       ['note.create', 'Propose a new FlowMind note. Requires explicit confirmation before writing.'],
       ['note.update', 'Propose updating an existing note. Requires explicit confirmation before writing.'],
       ['decision.note.create', 'Propose a cited decision note from server-observed evidence. Requires explicit confirmation before writing.'],
-      ['draft.create', 'Propose a new writing draft. Requires explicit confirmation before writing.'],
+      ['draft.create', 'Propose a new writing draft or code file. Requires explicit confirmation before writing.'],
+      ['draft.update', 'Propose updating the last writing draft or code file. Requires explicit confirmation before writing.'],
       ['task.create', 'Propose a new task note. Requires explicit confirmation before writing.'],
       ['file.write', 'Propose a write under a user-selected file root. Requires explicit confirmation before writing.'],
       ['graph.append-link', 'Propose adding an explicit link to a note. Requires explicit confirmation before writing.'],

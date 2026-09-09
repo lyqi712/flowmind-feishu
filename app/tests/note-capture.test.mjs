@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { displayTitle, hasBrokenEncoding, humanizeSourceLabel, sanitizeDisplayText, searchResultTitle, searchResultType } from '../src/workspace/display-text.js';
-import { appendWikiLinksToNote, applyAssistantAnswerToProblemNote, buildSourceNoteContent, buildSourceNoteTitle, extractPitfallFromAnswer, extractSpokenPitfall, findRelatedProblemNote, isPitfallAppendQuestion, isProblemNote, mergeProblemNoteContent, noteHasSubstance, noteHasVisibleRelations, noteListAnswerPreview, noteListPreview, noteListQuestion, parseQaNote, pickOpenNote, plainPreview, problemNoteDraft, searchExcerptPreview, serializeQaNote, wikiLinksFromSourceRefs } from '../src/workspace/note-capture.js';
+import { appendWikiLinksToNote, applyAssistantAnswerToProblemNote, blankNoteDraft, buildSourceNoteContent, buildSourceNoteTitle, extractPitfallFromAnswer, extractSpokenPitfall, findRelatedProblemNote, isBlankNoteTitle, isPitfallAppendQuestion, isProblemNote, mergeProblemNoteContent, nextNoteTitle, noteHasSubstance, noteHasVisibleRelations, noteListAnswerPreview, noteListPreview, noteListQuestion, parseQaNote, pickOpenNote, plainPreview, problemNoteDraft, searchExcerptPreview, serializeQaNote, suggestNoteTitleFromContent, wikiLinksFromSourceRefs } from '../src/workspace/note-capture.js';
 
 test('broken encoding titles are not shown as first-class labels', () => {
   assert.equal(hasBrokenEncoding('标签验证文档'), false);
@@ -64,6 +64,12 @@ test('opening notes skips blank untitled drafts', () => {
   assert.equal(noteHasSubstance(real), true);
   assert.equal(pickOpenNote([blank, olderBlank, real]).id, 'n3');
   assert.equal(pickOpenNote([blank, real], { preferredId: 'n1' }).id, 'n1');
+  assert.deepEqual(blankNoteDraft(), { title: '无标题笔记', content: '', tags: [] });
+  assert.equal(isBlankNoteTitle('无标题笔记'), true);
+  assert.equal(isBlankNoteTitle('周会纪要'), false);
+  assert.equal(suggestNoteTitleFromContent('# 周会纪要\n\n- 进度'), '周会纪要');
+  assert.equal(nextNoteTitle({ title: '无标题笔记', content: '第一行会变成标题', titleTouched: false }), '第一行会变成标题');
+  assert.equal(nextNoteTitle({ title: '已经起好的标题', content: '第一行会变成标题', titleTouched: true }), '已经起好的标题');
 });
 
 test('problem notes present as question, resolution and next-time pitfall', () => {

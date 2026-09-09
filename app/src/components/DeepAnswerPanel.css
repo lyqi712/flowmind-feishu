@@ -9,8 +9,8 @@
   --da-border: #eeece7;
   --da-text: #322e22;
   --da-muted: #847d69;
-  --da-primary: #c37355;
-  --da-primary-soft: #fbf7f2;
+  --da-primary: #c96442;
+  --da-primary-soft: #f6e9e1;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -70,6 +70,39 @@
   background: #fbfaf8;
 }
 
+.deep-answer-process {
+  border: 1px solid var(--da-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.deep-answer-process-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 10px;
+  color: var(--da-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deep-answer-process-summary::-webkit-details-marker {
+  display: none;
+}
+
+.deep-answer-process-body {
+  display: none;
+}
+
+.deep-answer-process[open] .deep-answer-process-summary {
+  border-bottom: 1px solid var(--da-border);
+}
+
+.deep-answer-process[open] .deep-answer-process-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
 .deep-answer-header {
   justify-content: flex-start;
   gap: 8px;
@@ -82,6 +115,10 @@
 .deep-answer-heading {
   min-width: 0;
   gap: 10px;
+}
+
+.deep-answer-extras:not([open]) .deep-answer-heading p {
+  display: none;
 }
 
 .deep-answer-heading-icon,
@@ -665,6 +702,12 @@
   .deep-answer-graph-suggestion,
   .deep-answer-graph-suggestion-actions {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deep-answer-process,
+  .deep-answer-process-body {
+    width: 100%;
+    max-width: 100%;
   }
 
   .deep-answer-section-title {

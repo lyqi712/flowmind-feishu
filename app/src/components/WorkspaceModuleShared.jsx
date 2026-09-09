@@ -23,6 +23,6 @@ export async function downloadExport(payload, onToast) {
 }
 export const formatTime = value => value ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
 
-export function ModuleWelcome({ icon: Icon, title, description, action, actionLabel }) {
-  return <div className="module-welcome"><span><Icon size={30}/></span><h2>{title}</h2><p>{description}</p><button onClick={action}><Plus size={16}/>{actionLabel}</button></div>;
+export function ModuleWelcome({ icon: Icon, title, description, action, actionLabel, secondaryAction, secondaryLabel }) {
+  return <div className="module-welcome"><span><Icon size={30}/></span><h2>{title}</h2><p>{description}</p><div className="module-welcome-actions"><button type="button" onClick={action}><Plus size={16}/>{actionLabel}</button>{secondaryAction ? <button type="button" className="module-welcome-secondary" onClick={secondaryAction}>{secondaryLabel}</button> : null}</div></div>;
 }

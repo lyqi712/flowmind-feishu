@@ -185,6 +185,7 @@ export class JsonStateStore {
     this.conversations = [];
     this.agent = emptyAgent();
     this.writeQueue = Promise.resolve();
+    this.collections = new Map();
     this.ready = this.initialize();
   }
 
@@ -241,8 +242,14 @@ export class JsonStateStore {
     return this.get();
   }
 
+  attachCollection(name, adapter) {
+    if (!name || typeof adapter?.read !== 'function' || typeof adapter?.write !== 'function') throw new TypeError('collection read/write adapter required');
+    this.collections.set(name, adapter);
+  }
+
   get() {
     const state = clone(this.state);
+    for (const [name, adapter] of this.collections) state[name] = adapter.read();
     state.conversations = this.conversations.slice();
     state.agent = {
       runs: this.agent.runs.slice(),
@@ -261,6 +268,20 @@ export class JsonStateStore {
     const operation = this.writeQueue.catch(() => undefined).then(async () => {
       await this.ready;
       const draft = clone(this.state);
+      const collectionChanges = new Map();
+      for (const [name, adapter] of this.collections) {
+        Object.defineProperty(draft, name, {
+          configurable: true, enumerable: true,
+          get: () => {
+            if (!collectionChanges.has(name)) {
+              const before = adapter.read();
+              collectionChanges.set(name, { before, next: clone(before) });
+            }
+            return collectionChanges.get(name).next;
+          },
+          set: value => collectionChanges.set(name, { before: collectionChanges.get(name)?.before || adapter.read(), next: Array.isArray(value) ? value : [] })
+        });
+      }
       let conversationsDraft;
       let agentDraft;
       Object.defineProperty(draft, 'conversations', {
@@ -297,8 +318,16 @@ export class JsonStateStore {
         : (assignedAgent.present ? normalizeAgent(assignedAgent.value) : this.agent);
       delete draft.conversations;
       delete draft.agent;
+      for (const [name, adapter] of this.collections) {
+        const assigned = consumeOwnValue(draft, name);
+        if (assigned.present) collectionChanges.set(name, { before: collectionChanges.get(name)?.before || adapter.read(), next: Array.isArray(assigned.value) ? assigned.value : [] });
+        delete draft[name];
+        draft[name] = [];
+      }
       stripSidecars(draft);
       await this.persist(draft);
+      // Canonical collections commit before returning success. JSON never holds a newer copy.
+      for (const [name, change] of collectionChanges) this.collections.get(name).write(change.next, change.before);
       if (conversationsDraft !== undefined || assignedConversations.present) await this.persistConversationRecords(nextConversations);
       if (agentDraft !== undefined || assignedAgent.present) await this.persistSidecar('agent', nextAgent);
       this.state = draft;
@@ -384,6 +413,8 @@ export class JsonStateStore {
   }
 
   async persist(state) {
-    await atomicWriteJson(this.filePath, stripSidecars({ ...state }));
+    const snapshot = stripSidecars({ ...state });
+    for (const name of this.collections.keys()) snapshot[name] = [];
+    await atomicWriteJson(this.filePath, snapshot);
   }
 }

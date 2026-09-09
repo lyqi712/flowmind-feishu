@@ -85,6 +85,10 @@ export class ContentBackupService {
 
   restoreArchive(archive, { mode = 'merge' } = {}) {
     const verification = this.verifyArchive(archive);
+    return this.repository.transaction(() => this.restoreVerifiedArchive(archive, { mode, verification }));
+  }
+
+  restoreVerifiedArchive(archive, { mode, verification }) {
     const payload = archive.payload;
     if (mode === 'replace-content') {
       for (const item of pages((offset) => this.repository.listContentItems({ includeDeleted: false, limit: 1000, offset }))) this.repository.softDeleteContentItem(item.id);

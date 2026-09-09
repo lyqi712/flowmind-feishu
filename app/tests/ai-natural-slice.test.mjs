@@ -35,6 +35,13 @@ test('Composer 语音入口和回答内图表保持在同一上下文流', () =>
   assert.ok(css.includes('.composer-voice-button'));
 });
 
+test('回答完成后转笔记就在答案下面，不用先点更多', () => {
+  assert.match(main, /className="answer-version-actions"/);
+  assert.match(main, /<NotebookPen size=\{13\}\/>转笔记/);
+  assert.match(main, /onCreateArtifact\?\.\('note', message\)/);
+  assert.match(main, /onCreateArtifact\?\.\('problem', message\)/);
+});
+
 test('覆盖率留在深度过程里，不挡默认回答', () => {
   assert.match(main, /message\.relations \? <Suspense/);
   assert.match(main, /将回答转为笔记/);
@@ -42,5 +49,6 @@ test('覆盖率留在深度过程里，不挡默认回答', () => {
   assert.match(deep, /citationIntegrity/);
   assert.match(deep, /deep-answer-extras/);
   assert.match(deep, /showProcessDetails \? <div className="deep-answer-overview">/);
+  assert.match(deep, /className="deep-answer-process"/);
   assert.doesNotMatch(deep, /: coverage \? <CoverageCard/);
 });

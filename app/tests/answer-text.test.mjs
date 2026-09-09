@@ -33,6 +33,21 @@ test('stripTemplatedAnswerSections removes lone about-section bold headers', () 
   assert.match(output, /Agent Loop 正面处理/);
 });
 
+test('stripTemplatedAnswerSections removes contrast report openers', () => {
+  const input = '这两份材料对“长时运行幻觉”的讲法差异很大，核心区别在于：Hermes 偏 Harness [1]。';
+  const output = stripTemplatedAnswerSections(input);
+  assert.doesNotMatch(output, /差异很大/);
+  assert.doesNotMatch(output, /核心区别在于/);
+  assert.match(output, /Hermes 偏 Harness \[1\]/);
+});
+
+test('stripTemplatedAnswerSections removes the I-mainly-read closer', () => {
+  const input = 'Hermes 讲 Harness [1]。\n我主要看了《Agent Loop》和《Agent Reach》这两篇，另外参考了说明书。';
+  const output = stripTemplatedAnswerSections(input);
+  assert.match(output, /Hermes 讲 Harness \[1\]/);
+  assert.doesNotMatch(output, /我主要看了/);
+});
+
 test('looksTemplatedAnswer flags empty skeleton answers', () => {
   assert.equal(looksTemplatedAnswer('## 结论\n'), true);
   assert.equal(looksTemplatedAnswer('引用覆盖率 80%'), true);

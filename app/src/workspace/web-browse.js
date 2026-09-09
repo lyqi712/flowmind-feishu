@@ -1,9 +1,10 @@
+import { isBlockedHostname, normalizeBrowseUrl } from '../../shared/public-http-url.mjs';
 import { isPlaceholderPitfall, isProblemNote, parseQaNote, problemNoteDraft, replaceQaSection } from './note-capture.js';
 
 const WEB_CLIP_EXCERPT_LIMIT = 400;
 const WEB_CLIP_PITFALL_LIMIT = 160;
 
-export const WEB_EMBED_LIMITATION = '浏览器里很多网站禁止嵌入，页面经常是白的。桌面版才能完整浏览；这里用可读摘要，把容易忘的点剪进问题记录。';
+export const WEB_EMBED_LIMITATION = '浏览器里很多网站禁止嵌入，页面经常是白的。桌面版才能完整浏览；这里用可读摘要，把容易忘的点剪进问题记录。尝试嵌入时无法读取跨域页面跳转后的网址和标题，剪藏仅使用地址栏网址；请粘贴目标网址后再剪藏。';
 
 export function webEmbedIsReliable(electron = false) {
   return Boolean(electron);
@@ -14,46 +15,51 @@ export function webBrowseLimitation(electron = false) {
 }
 
 export function isPrivateBrowseHost(host) {
-  const hostname = String(host || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
-  if (!hostname) return true;
-  if (
-    hostname === 'localhost'
-    || hostname.endsWith('.localhost')
-    || hostname.endsWith('.local')
-    || hostname === '0.0.0.0'
-    || hostname === '::'
-    || hostname === '::1'
-    || hostname === 'metadata'
-    || hostname === 'metadata.google.internal'
-  ) return true;
-  if (
-    hostname.startsWith('127.')
-    || hostname.startsWith('10.')
-    || hostname.startsWith('192.168.')
-    || hostname.startsWith('169.254.')
-    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
-  ) return true;
-  if (hostname.startsWith('::ffff:')) return isPrivateBrowseHost(hostname.slice(7));
-  if (hostname.includes(':') && (hostname.startsWith('fc') || hostname.startsWith('fd') || hostname.startsWith('fe80:'))) return true;
-  return false;
+  return isBlockedHostname(host);
 }
 
 export function normalizeClientBrowseUrl(input) {
-  const raw = String(input || '').trim();
-  if (!raw) throw new Error('请输入网址');
-  const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) ? raw : `https://${raw}`;
-  let url;
-  try {
-    url = new URL(withProtocol);
-  } catch {
-    throw new Error('网址无效');
+  return normalizeBrowseUrl(input);
+}
+
+// Subscribe once per guest, not per URL: remounting a webview destroys its history.
+export function observeWebviewNavigation(view, { onNavigate, onTitle, onHistory, onError }) {
+  function history() {
+    onHistory?.({ back: Boolean(view.canGoBack?.()), forward: Boolean(view.canGoForward?.()) });
   }
-  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('只支持 http/https 网页');
-  if (url.username || url.password || isPrivateBrowseHost(url.hostname)) {
-    throw new Error(url.username || url.password ? '网址不能包含凭据' : '不能打开内网或本机地址');
+  function navigate(event) {
+    if (event.isMainFrame === false) return;
+    try {
+      const url = normalizeClientBrowseUrl(event.url || view.getURL()).href;
+      onNavigate?.(url);
+      history();
+    } catch (error) {
+      view.stop?.();
+      onError?.(error);
+    }
   }
-  url.hash = '';
-  return url;
+  function title(event) {
+    try {
+      const url = normalizeClientBrowseUrl(view.getURL()).href;
+      onTitle?.(url, String(event.title || view.getTitle?.() || ''));
+      history();
+    } catch (error) { onError?.(error); }
+  }
+  function failed(event) {
+    if (event.isMainFrame === false || event.errorCode === -3) return;
+    onError?.(new Error(event.errorDescription || '网页打开失败'));
+  }
+  const listeners = {
+    'did-navigate': navigate,
+    'did-navigate-in-page': navigate,
+    'page-title-updated': title,
+    'did-finish-load': title,
+    'did-fail-load': failed
+  };
+  for (const [name, listener] of Object.entries(listeners)) view.addEventListener(name, listener);
+  return () => {
+    for (const [name, listener] of Object.entries(listeners)) view.removeEventListener(name, listener);
+  };
 }
 
 export function webSourceHostname(url) {
@@ -70,7 +76,8 @@ export function createWebWorkspaceTab({ url = '', title = '', id } = {}) {
   const href = String(url || '').trim();
   const label = String(title || '').trim() || href || '网页';
   return {
-    id: id || (href ? `web-${encodeURIComponent(href).slice(0, 80)}` : `web-${Date.now()}`),
+    // Keep the complete URL: a truncated prefix aliases distinct long paths/queries.
+    id: id || (href ? `web-${encodeURIComponent(href)}` : `web-${globalThis.crypto.randomUUID()}`),
     kind: 'web',
     type: 'web',
     route: 'web',

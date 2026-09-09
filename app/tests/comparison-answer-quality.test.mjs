@@ -89,7 +89,7 @@ test('comparison answers strip canned section headers from model output', async 
 
 test('buildAgentAnswerSystemPrompt keeps natural dialogue constraints', () => {
   const prompt = buildAgentAnswerSystemPrompt();
-  assert.match(prompt, /像懂行的同事/);
-  assert.match(prompt, /别用「围绕 X 展开」/);
+  assert.match(prompt, /像当面说话/);
+  assert.match(prompt, /不要用「核心区别在于」/);
   assert.doesNotMatch(prompt, /结论\/依据\/下一步/);
 });

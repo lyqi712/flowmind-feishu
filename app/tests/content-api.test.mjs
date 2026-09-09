@@ -105,7 +105,10 @@ test('上传内容按哈希去重，不支持类型形成可见 warning，备份
     assert.equal(first.body.items[0].item.sourceModifiedAt, null);
     assert.equal(second.body.stats.duplicates, 1);
     const unsupported = await upload(h, 'unknown.flowmind', 'unsupported fixture');
-    assert.equal(unsupported.response.status, 201);
+    assert.equal(unsupported.response.status, 422);
+    assert.equal(unsupported.body.ok, false);
+    assert.equal(unsupported.body.job.status, 'failed');
+    assert.equal(unsupported.body.items.length, 0);
     assert.equal(unsupported.body.stats.failed, 1);
     assert.equal(unsupported.body.warnings[0].code, 'CONTENT_PARSER_UNSUPPORTED');
     const backupText = await (await fetch(`${h.base}/api/content/backup`)).text();

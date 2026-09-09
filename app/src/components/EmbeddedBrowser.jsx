@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Globe, LoaderCircle, RotateCcw, Scissors, StickyNote } from 'lucide-react';
-import { normalizeClientBrowseUrl, webBrowseLimitation, webEmbedIsReliable } from '../workspace/web-browse.js';
+import { normalizeClientBrowseUrl, observeWebviewNavigation, webBrowseLimitation, webEmbedIsReliable } from '../workspace/web-browse.js';
 import './EmbeddedBrowser.css';
 
 function readableError(error, fallback = '网页打开失败') {
@@ -25,6 +25,12 @@ export function EmbeddedBrowser({
       return '';
     }
   });
+  const [frameUrl, setFrameUrl] = useState(href);
+  const activeUrl = useRef(href);
+  const urlChange = useRef(onUrlChange);
+  urlChange.current = onUrlChange;
+  const [history, setHistory] = useState({ back: false, forward: false });
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [title, setTitle] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [preview, setPreview] = useState(null);
@@ -38,59 +44,107 @@ export function EmbeddedBrowser({
   const canEmbed = webEmbedIsReliable(electron);
   const limitation = webBrowseLimitation(electron);
 
-  useEffect(() => {
-    const next = String(initialUrl || '');
-    if (!next) return;
+  function updateLocation(next) {
+    if (next !== activeUrl.current) {
+      setTitle('');
+      setPreview(null);
+      setExcerpt('');
+    }
+    activeUrl.current = next;
+    setHref(next);
     setDraft(next);
-    try {
-      setHref(normalizeClientBrowseUrl(next).href);
-      setError('');
-    } catch (currentError) {
-      setError(readableError(currentError));
-    }
-  }, [initialUrl]);
-
-  async function loadPreview(target) {
-    setBusy('preview');
-    try {
-      const response = await fetch('/api/web/preview', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: target })
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.error?.message || body?.message || `网页读取失败（${response.status}）`);
-      setPreview(body);
-      if (body.title) {
-        setTitle(body.title);
-        onUrlChange?.(target, { title: body.title });
-      }
-      return body;
-    } finally {
-      setBusy('');
-    }
+    setError('');
   }
 
-  async function go(event) {
-    event?.preventDefault?.();
-    setError('');
+  useEffect(() => {
+    if (!initialUrl) return;
+    try {
+      const next = normalizeClientBrowseUrl(initialUrl).href;
+      // The parent echoes observed guest navigation; do not navigate the guest again.
+      if (next === activeUrl.current) return;
+      updateLocation(next);
+      if (next === frameUrl && webviewRef.current) {
+        webviewRef.current.loadURL(next)?.catch?.(currentError => setError(readableError(currentError)));
+      }
+      setFrameUrl(next);
+    } catch (currentError) { setError(readableError(currentError)); }
+  }, [initialUrl]);
+
+  const hasFrame = Boolean(frameUrl);
+  useEffect(() => {
+    const view = webviewRef.current;
+    if (!canEmbed || !view) return;
+    return observeWebviewNavigation(view, {
+      onNavigate(next) {
+        const changed = next !== activeUrl.current;
+        updateLocation(next);
+        if (changed) urlChange.current?.(next, { title: next });
+      },
+      onTitle(next, nextTitle) {
+        if (next !== activeUrl.current) return;
+        setTitle(nextTitle);
+        urlChange.current?.(next, { title: nextTitle || next });
+      },
+      onHistory: setHistory,
+      onError: currentError => setError(readableError(currentError))
+    });
+  }, [canEmbed, hasFrame]);
+
+  useEffect(() => {
+    if (electron || !href) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    setBusy('preview');
     setPreview(null);
-    setReaderMode(false);
+    (async () => {
+      try {
+        const response = await fetch('/api/web/preview', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: href }),
+          signal: controller.signal
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error?.message || body?.message || `网页读取失败（${response.status}）`);
+        if (cancelled || activeUrl.current !== href) return;
+        setPreview(body);
+        setTitle(body.title || '');
+        urlChange.current?.(href, { title: body.title || href });
+      } catch (currentError) {
+        if (!cancelled && activeUrl.current === href) setError(readableError(currentError, '可读摘要失败，仍可剪藏地址栏网址。'));
+      } finally {
+        if (!cancelled) setBusy(current => current === 'preview' ? '' : current);
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
+  }, [electron, href, refreshVersion]);
+
+  function refresh() {
+    setError('');
+    try {
+      if (electron) webviewRef.current?.reload?.();
+      else setRefreshVersion(current => current + 1);
+    } catch (currentError) { setError(readableError(currentError)); }
+  }
+
+  function navigateHistory(direction) {
+    try { webviewRef.current?.[direction]?.(); }
+    catch (currentError) { setError(readableError(currentError)); }
+  }
+
+  function go(event) {
+    event?.preventDefault?.();
     try {
       const next = normalizeClientBrowseUrl(draft).href;
-      setHref(next);
-      setTitle('');
-      onUrlChange?.(next, { title: next });
-      if (!electron) {
-        try {
-          await loadPreview(next);
-        } catch (currentError) {
-          setError(readableError(currentError, '可读摘要失败。若页面能嵌入，仍可继续浏览并剪藏网址。'));
-        }
+      const same = next === activeUrl.current;
+      updateLocation(next);
+      if (!same && next === frameUrl && webviewRef.current) {
+        webviewRef.current.loadURL(next)?.catch?.(currentError => setError(readableError(currentError)));
       }
-    } catch (currentError) {
-      setError(readableError(currentError));
-    }
+      setFrameUrl(next);
+      urlChange.current?.(next, { title: same ? title || next : next });
+      if (same) refresh();
+    } catch (currentError) { setError(readableError(currentError)); }
   }
 
   async function clip(mode = 'excerpt') {
@@ -107,6 +161,8 @@ export function EmbeddedBrowser({
         targetNoteId: lastClip?.id
       });
       if (note?.id) setLastClip(note);
+    } catch (currentError) {
+      setError(readableError(currentError, '剪藏失败，请重试'));
     } finally {
       setBusy('');
     }
@@ -119,9 +175,9 @@ export function EmbeddedBrowser({
   return (
     <section className="embedded-browser" aria-label="内嵌网页">
       <form className="embedded-browser-toolbar" onSubmit={go}>
-        <button type="button" onClick={() => (electron ? webviewRef.current?.goBack?.() : iframeRef.current?.contentWindow?.history.back())} aria-label="后退" disabled={!href || readerVisible}><ArrowLeft size={16} /></button>
-        <button type="button" onClick={() => (electron ? webviewRef.current?.goForward?.() : iframeRef.current?.contentWindow?.history.forward())} aria-label="前进" disabled={!href || readerVisible}><ArrowRight size={16} /></button>
-        <button type="button" onClick={() => go()} aria-label="刷新" disabled={!draft.trim()}><RotateCcw size={16} /></button>
+        <button type="button" onClick={() => navigateHistory('goBack')} aria-label="后退" disabled={!href || readerVisible || !history.back}><ArrowLeft size={16} /></button>
+        <button type="button" onClick={() => navigateHistory('goForward')} aria-label="前进" disabled={!href || readerVisible || !history.forward}><ArrowRight size={16} /></button>
+        <button type="button" onClick={refresh} aria-label="刷新" disabled={!draft.trim()}><RotateCcw size={16} /></button>
         <label className="embedded-browser-address">
           <Globe size={15} aria-hidden="true" />
           <input value={draft} onChange={event => setDraft(event.target.value)} placeholder="粘贴或输入网址，例如 example.com" aria-label="网址" autoComplete="off" />
@@ -134,8 +190,7 @@ export function EmbeddedBrowser({
         {href ? (
           canEmbed ? React.createElement('webview', {
             ref: webviewRef,
-            key: href,
-            src: href,
+            src: frameUrl,
             partition: 'persist:flowmind-web',
             allowpopups: 'false',
             webpreferences: 'contextIsolation=yes, nodeIntegration=no, sandbox=yes',
@@ -148,7 +203,7 @@ export function EmbeddedBrowser({
               <p>{preview?.excerpt || (busy === 'preview' ? '正在读取摘要…' : '没有提取到正文摘要，仍可把网址剪藏。')}</p>
             </article>
           ) : (
-            <iframe ref={iframeRef} className="embedded-browser-frame" title={frameTitle} src={href} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="no-referrer" />
+            <iframe key={refreshVersion} ref={iframeRef} className="embedded-browser-frame" title={frameTitle} src={frameUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="no-referrer" />
           )
         ) : (
           <div className="embedded-browser-empty">

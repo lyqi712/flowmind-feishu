@@ -142,16 +142,19 @@ test('空对话先给 Copilot 开场，不让智能首页把提问入口挤掉',
   assert.match(mainSource, /<MessageFeedback conversationId=\{message.conversationId \|\| conversationId\}/);
 });
 
-test('斜杠菜单只留提问相关动作，录音写作进对话更多', () => {
+test('斜杠菜单只留提问相关动作，解读录音写作进对话更多', () => {
   assert.match(mainSource, /id: 'action-add-file'/);
   assert.match(mainSource, /id: 'action-problem-note'/);
-  assert.match(mainSource, /id: 'action-analysis'/);
   assert.match(mainSource, /id: 'action-new-chat'/);
+  assert.doesNotMatch(mainSource, /id: 'action-analysis'/);
   assert.doesNotMatch(mainSource, /id: 'action-recording'/);
   assert.doesNotMatch(mainSource, /id: 'action-evidence'/);
   assert.doesNotMatch(mainSource, /id: 'action-writing'/);
+  assert.match(mainSource, />文档解读</);
   assert.match(mainSource, />录音纪要</);
   assert.match(mainSource, />写作草稿</);
+  assert.doesNotMatch(mainSource, /onOpenModule\?\.\('skills'\); setChatMoreOpen\(false\)/);
+  assert.doesNotMatch(mainSource, /onOpenEvidence\?\.\(\); setChatMoreOpen\(false\)/);
   assert.match(mainSource, />Skill 工作台</);
   assert.match(mainSource, /onCreateProblemNote=\{handleWorkspaceCreateProblemNote\}/);
   assert.doesNotMatch(mainSource, /该模块将在后续工作台版本中开放/);
@@ -303,11 +306,18 @@ test('笔记默认在这篇里问，到对话里继续是显式更多项', async
   assert.match(notesSource, /在这篇里问/);
   assert.match(notesSource, /问这篇笔记/);
   assert.match(notesSource, /到对话里继续/);
-  assert.match(notesSource, /if \(action === 'ask'\) return/);
+  assert.match(notesSource, /if \(action === 'ask'\) \{/);
+  assert.match(notesSource, /askAboutSelection/);
   assert.match(notesSource, /fetch\('\/api\/agent\/run'/);
   assert.match(notesSource, /surface: 'note-assistant'/);
   assert.match(notesSource, /question: text/);
+  assert.match(notesSource, /noteContext: \{ id: currentNote\.id, title: currentNote\.title, content: currentNote\.content \|\| '' \}/);
+  assert.match(appSource, /surface: readerLock\.surface/);
   assert.match(mainSource, /function handleWorkspaceAskAboutNote/);
+  assert.match(mainSource, /buildPageAskContext/);
+  assert.match(mainSource, /normalizePageAskSelection/);
+  assert.match(mainSource, /buildSelectionAskPrompt/);
+  assert.match(notesSource, /onAskAboutNote\(draft, '', hasEditorSelection/);
   assert.match(mainSource, /onAskAboutNote={handleWorkspaceAskAboutNote}/);
 });
 

@@ -94,7 +94,7 @@
 }
 .embedded-browser-empty { place-items: center; text-align: center; color: var(--friday-muted, #78716c); }
 .embedded-browser-reader h1 { margin: 8px 0; font-size: 28px; letter-spacing: -.03em; }
-.embedded-browser-reader a { color: var(--friday-accent, #2563eb); overflow-wrap: anywhere; }
+.embedded-browser-reader a { color: var(--friday-accent, #c96442); overflow-wrap: anywhere; }
 .embedded-browser-clip {
   display: grid;
   gap: 10px;

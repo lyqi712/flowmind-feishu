@@ -35,10 +35,15 @@ test('main wires writing provenance to the shared content reader', () => {
 
 test('writing autosave persists a complete immutable snapshot', () => {
   assert.match(writingSource, /writingSaveSnapshot\(draft\)/);
-  assert.match(writingSource, /jsonOptions\('PATCH', \{\s*title: snapshot\.title,\s*content: snapshot\.content,\s*template: snapshot\.template,\s*audience: snapshot\.audience,\s*tone: snapshot\.tone,\s*sourceRefs: snapshot\.sourceRefs/);
-  assert.match(writingSource, /editRevisionRef/);
-  assert.match(writingSource, /saveRequestRef/);
-  assert.match(writingSource, /requestId !== saveRequestRef\.current \|\| editRevisionRef\.current !== revision/);
+  assert.match(writingSource, /sendJsonDocument\(`\/api\/writing\/drafts\/\$\{encodeURIComponent\(snapshot\.id\)\}`/);
+  assert.match(writingSource, /createDocumentSaveController/);
+  assert.match(writingSource, /WRITING_SAVE_DEBOUNCE_MS/);
+  assert.match(writingSource, /prepareDocumentSwitch/);
+  assert.match(writingSource, /jsonBodyWithBaseVersion/);
+  assert.match(writingSource, /requireSavedRecord\(data, 'draft'/);
+  assert.match(writingSource, /acceptBaseline\(next\.id, next\)/);
+  assert.match(writingSource, /registerWorkspaceSaveGuard/);
+  assert.match(writingSource, /controller\.flushAll\(\)/);
   assert.doesNotMatch(writingSource, /sourceRefs:\s*undefined/);
 });
 
@@ -60,9 +65,10 @@ test('writing workspace keeps AI generation transactional and exposes save recov
     '生成期间草稿已经变化',
     'mergeWritingSourceRefs',
     'writingSaveSnapshot',
-    'editRevisionRef',
-    'saveRequestRef',
-    'requestId !== saveRequestRef.current || editRevisionRef.current !== revision',
+    'createDocumentSaveController',
+    'WRITING_SAVE_DEBOUNCE_MS',
+    'prepareDocumentSwitch',
+    'jsonBodyWithBaseVersion',
     'sourceRefs: snapshot.sourceRefs',
     '保存失败，草稿仍保留在当前页面',
     '重试保存',

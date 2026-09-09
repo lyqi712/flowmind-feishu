@@ -54,7 +54,7 @@ export function conversationFastReply(value) {
     return '好。下一句直接说要查知识库什么、改什么，或写成笔记。';
   }
   if (GENERAL_ASSISTANT_QUESTION_PATTERN.test(normalized) || isHowToWriteQuestion(value)) {
-    return '我是 FlowMind。查知识库、对照资料、看图谱都可以；写成笔记、草稿、任务或飞书文档要你确认后才落盘。写代码会做成草稿给你看，不会在这台电脑上执行。直接说要做什么就行。';
+    return '我是 FlowMind。查知识库、对照资料、看图谱都可以。写代码、建文件、改刚才那份草稿，确认后进写作台，不会在这台电脑上偷偷落盘或跑程序。直接说要做什么就行。';
   }
   return '你好。我是 FlowMind，可以帮你查知识库、读文档、写笔记或草稿、创建飞书文档、查图谱。直接说要做什么就行。';
 }
@@ -70,7 +70,7 @@ export function isTransformableAssistantAnswer(content, extras = {}) {
   const reason = String(extras.reason || policy.reason || '').trim();
   const citationStatus = String(extras.citationStatus || extras.agent?.citationStatus || '').trim();
   if (extras.fastReply === true || policy.fastReply === true) return false;
-  if (['conversation_only', 'confirmation_idle', 'confirmation_not_pending', 'transform_without_answer'].includes(reason)) return false;
+  if (['conversation_only', 'confirmation_idle', 'confirmation_not_pending', 'confirmation_acknowledged', 'transform_without_answer'].includes(reason)) return false;
   if (citationStatus === 'confirmation-decided' || citationStatus === 'confirmation-decision') return false;
   if (/当前没有待确认的写入提案|刚才那条写入提案已经不在待确认状态|上一句还没有可改写的回答/.test(text)) return false;
   if (/^你好[。.]我是 FlowMind|^我是 FlowMind|^不客气|^好。下一句直接说|这条对话里不能收款|库里这会儿对不上/.test(text)) return false;
@@ -98,7 +98,7 @@ export function isSoftConfirmationApproval(value) {
 
 export function isConfirmationApproval(value) {
   const normalized = compactQuestion(value);
-  return CONFIRMATION_APPROVE_PATTERN.test(normalized) || CONFIRMATION_SOFT_APPROVE_PATTERN.test(normalized);
+  return CONFIRMATION_APPROVE_PATTERN.test(normalized);
 }
 
 export function isHardConfirmationApproval(value) {
@@ -225,23 +225,32 @@ export function emptyRetrievalRelations(question) {
       relevantDocuments: [],
       uncoveredClaims: [claim]
     },
-    followUpSuggestions: ['补充相关文档后再问一次。', '缩小问题范围，改用资料里出现过的说法。'],
+    followUpSuggestions: ['换个说法，或先打开一篇再问。'],
     citationIntegrity: { status: 'empty', invalidMarkers: [], validMarkers: [], reason: 'empty_retrieval' }
   };
 }
 
+export function hasKnowledgeDependency(value) {
+  const question = normalizeQuestion(value);
+  return /(?:根据|依据|基于|按照|遵循|参照|参考|对照).{0,48}(?:文档|资料|知识库|笔记|规范|手册|来源|需求|接口说明|这篇|那篇|刚才|上文)/u.test(question)
+    || /(?:刚才|上文|这篇|那篇|选中|已选).{0,16}(?:文档|资料|规范|手册|要求)/u.test(question)
+    || /(?:based on|according to|refer to|using|from)\s+(?:the\s+)?(?:selected\s+|attached\s+|previous\s+)?(?:documents?|spec(?:ification)?s?|knowledge base|notes?|requirements?|readme)\b/iu.test(question);
+}
+
 export function isArtifactWorkQuestion(value) {
   const question = normalizeQuestion(value);
-  if (!question) return false;
-  if (/(?:知识库|资料|文档|笔记)/u.test(question)) return false;
+  if (!question || hasKnowledgeDependency(question)) return false;
+  if (/(?:知识库|资料|笔记)/u.test(question) && !/(?:写成|写进|改成)/u.test(question)) return false;
+  if (/(?:改(?:一下|一改)?(?:这个|刚才|上次)?(?:的)?(?:代码|脚本|函数|文件|草稿)|把.{0,12}(?:代码|文件|草稿).{0,8}改)/iu.test(question)) return true;
   if (/(?:写(?:一段|个|一份)?(?:代码|脚本|函数|程序|组件|页面|文件)|帮我写代码|生成代码|implement|write (?:some )?code)/iu.test(question)) return true;
-  if (/(?:写|生成|创建|编写)(?:一份|一个|篇)?\s*(?:readme|markdown)?\s*(?:文件|文档)|\.md\b|\.txt\b|\.py\b|\.js\b|\.ts\b|\.jsx\b|\.tsx\b/iu.test(question)) return true;
-  return /(?:写|生成|实现|编写|create|write|implement|generate)/iu.test(question) && /(?:代码|脚本|函数|程序|组件|页面|文件|code|script|function|component|readme)/iu.test(question);
+  if (/(?:写|生成|创建|新建|编写)(?:一份|一个|篇)?\s*(?:readme|markdown)?\s*(?:文件|文档)|\.(?:md|txt|py|js|ts|jsx|tsx|mjs|json|css|html|go|rs)\b/iu.test(question)) return true;
+  if (/(?:创建|新建|生成)(?:一个|一份)?文件/iu.test(question)) return true;
+  return /(?:写|生成|实现|编写|创建|新建|create|write|implement|generate)/iu.test(question) && /(?:代码|脚本|函数|程序|组件|页面|文件|code|script|function|component|readme)/iu.test(question);
 }
 
 export function isKnowledgeFreeTaskQuestion(value) {
   const question = normalizeQuestion(value);
-  if (!question) return false;
+  if (!question || hasKnowledgeDependency(question)) return false;
   if (/(?:知识库|资料|文档|笔记)(?:里|中|说|提到|根据)/u.test(question)) return false;
   if (isArtifactWorkQuestion(question)) return true;
   return /(?:拟定|起草|写个大纲|帮我想|出个方案|列个提纲|拆成步骤|写封邮件|写个演讲|整理会议纪要|写周报)/u.test(question);

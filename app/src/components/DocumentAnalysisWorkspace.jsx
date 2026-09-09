@@ -237,7 +237,8 @@ export function DocumentAnalysisModule({ onToast, initialDocumentId = '' }) {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.error?.message || `HTTP ${response.status}`);
         const imported = data.items?.[0]?.item;
-        if (imported) lastItemId = imported.id;
+        if (data.ok === false || Number(data.stats?.failed || 0) > 0 || !imported?.id) throw new Error(data.error?.message || data.warnings?.[0]?.message || '文件未生成可检索内容');
+        lastItemId = imported.id;
         const warning = data.warnings?.[0];
         setQueue(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, status: warning ? 'failed' : 'done', message: warning?.message || (data.stats?.duplicates ? '内容已存在，已关联来源' : '解析完成') } : item));
       } catch (error) {

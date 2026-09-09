@@ -26,6 +26,8 @@ import { createAgentRuntime, createToolRegistry } from './agent/index.mjs';
 import { McpConnectorGateway, normalizeMcpConnectors, publicMcpConnectors } from './mcp-gateway.mjs';
 import { buildMcpConnectKit } from './mcp-connect.mjs';
 import { extractNoteAttachmentText, noteSearchableContent, webClipMarkdown } from './note-knowledge.mjs';
+import { canonicalNoteMetadata, createNoteCollection } from './note-collection.mjs';
+import { ingestionHttpResult } from './content/ingestion-http.mjs';
 import { WorkspaceSyncService } from './workspace-sync.mjs';
 import { refreshAgentEvidence } from './agent/evidence.mjs';
 import { bindEvidenceRef, classifyEvidence, evidenceDigest, evidenceDocumentId, evidenceVersion, isLegacyUnobservedRef } from './evidence.mjs';
@@ -1357,8 +1359,8 @@ export function createApp({
   if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
   const app = express();
   const store = new JsonStateStore(stateFile);
-  const feishu = connector || new FeishuSettingsService({ env, fetchImpl, connectorOptions, ...feishuOptions });
-  const models = modelService || new ModelService({ store, env, fetchImpl, ...modelOptions });
+  const feishu = connector || new FeishuSettingsService({ env, fetchImpl, connectorOptions, secretFile: join(dirname(stateFile), 'feishu-secret.enc'), masterKeyFile: join(dirname(stateFile), '.feishu-master-key'), ...feishuOptions });
+  const models = modelService || new ModelService({ store, env, fetchImpl, secretFile: join(dirname(stateFile), 'model-secret.enc'), masterKeyFile: join(dirname(stateFile), '.model-master-key'), ...modelOptions });
   const content = contentRepository || new ContentRepository({ databasePath, ...contentOptions });
   const validateAgentEvidence = ref => {
     const provenance = ref?.provenance || {};
@@ -1404,12 +1406,13 @@ export function createApp({
     masterKeyFile: workspaceSyncOptions.masterKeyFile || join(dirname(stateFile), '.workspace-sync-master-key'),
     relayFile: workspaceSyncOptions.relayFile || join(dirname(stateFile), 'workspace-sync-relay.json')
   });
-  const contentReady = store.ready.then((legacyState) => {
+  const contentReady = store.ready.then(async (legacyState) => {
     const migration = content.migrateLegacyState(legacyState);
-    for (const note of legacyState.notes || []) {
-      if (!note?.id || note.deletedAt) continue;
-      syncNoteOwner(note);
-    }
+    const notes = createNoteCollection({ repository: content, writeNote: syncNoteOwner, attachmentManifest: noteAttachmentManifest });
+    notes.migrate(legacyState.notes || []);
+    store.attachCollection('notes', notes);
+    // Only remove the legacy JSON projection after its SQLite migration committed.
+    await store.update(() => {});
     graphIndex.rebuild();
     return migration;
   });
@@ -1576,12 +1579,7 @@ export function createApp({
   function syncNoteOwner(note) {
     const sourceRefs = bindCurrentSourceRefs(Array.isArray(note.sourceRefs) ? note.sourceRefs : []);
     const existing = content.getContentItem(note.id, { includeDeleted: true });
-    const metadata = {
-      ...(existing?.metadata || {}),
-      noteId: note.id,
-      sourceRefs,
-      ...(note.artifactKind ? { artifactKind: note.artifactKind } : {})
-    };
+    const metadata = canonicalNoteMetadata({ ...note, sourceRefs }, existing?.metadata || {});
     if (existing) {
       if (existing.contentType !== 'note') throw new Error(`ContentItem is not a note: ${note.id}`);
       return content.updateNote(note.id, { title: note.title, content: noteSearchableContent(note), tags: note.tags || [], metadata }).item;
@@ -1596,7 +1594,7 @@ export function createApp({
     const attachments = owner?.contentType === 'note'
       ? content.listAttachments(owner.id).map((attachment) => noteAttachmentManifest(note.id, attachment))
       : Array.isArray(note.attachments) ? note.attachments : [];
-    return { ...refreshed, attachments };
+    return { ...refreshed, attachments, contentVersionId: owner?.currentVersionId ?? null, contentHash: owner?.contentHash ?? null };
   }
 
   async function createAgentNote({ title, content: noteContent, tags = [], sourceRefs = [], artifactKind } = {}) {
@@ -1607,7 +1605,6 @@ export function createApp({
       attachments: [], archived: false, createdAt: timestamp, updatedAt: timestamp,
       ...(artifactKind ? { artifactKind: String(artifactKind) } : {})
     };
-    syncNoteOwner(note);
     await store.update(state => { state.notes.unshift(note); });
     graphIndex.rebuild();
     return noteWithAttachments(note);
@@ -1624,7 +1621,6 @@ export function createApp({
       ...(sourceRefs !== undefined ? { sourceRefs: bindCurrentSourceRefs(Array.isArray(sourceRefs) ? sourceRefs : []) } : {}),
       updatedAt: new Date().toISOString()
     };
-    syncNoteOwner(updated);
     await store.update(state => {
       const index = state.notes.findIndex(item => item.id === updated.id && !item.deletedAt);
       if (index >= 0) state.notes[index] = updated;
@@ -1644,10 +1640,30 @@ export function createApp({
     return draft;
   }
 
+  async function updateAgentDraft({ draftId, title, content: draftContent, sourceRefs, fileName, language, kind } = {}) {
+    const current = store.get().writingDrafts?.find(item => item.id === String(draftId));
+    if (!current) throw Object.assign(new Error('Draft not found'), { code: 'DRAFT_NOT_FOUND', status: 404 });
+    const updated = {
+      ...current,
+      ...(title !== undefined ? { title: String(title || current.title).trim() || current.title } : {}),
+      ...(draftContent !== undefined ? { content: String(draftContent || '') } : {}),
+      ...(fileName !== undefined ? { fileName: String(fileName || '').trim() } : {}),
+      ...(language !== undefined ? { language: String(language || '').trim() } : {}),
+      ...(kind !== undefined ? { kind: String(kind || current.kind || 'markdown').trim() } : {}),
+      ...(sourceRefs !== undefined ? { sourceRefs: Array.isArray(sourceRefs) ? sourceRefs : [] } : {}),
+      versions: [...(current.versions || []), { content: current.content, updatedAt: current.updatedAt }].slice(-20),
+      updatedAt: new Date().toISOString()
+    };
+    await store.update(state => {
+      const index = (state.writingDrafts || []).findIndex(item => item.id === updated.id);
+      if (index >= 0) state.writingDrafts[index] = updated;
+    });
+    return updated;
+  }
+
   async function createAgentTask({ title, content: taskContent, sourceRefs = [] } = {}) {
     const note = await createAgentNote({ title, content: taskContent, tags: ['Agent task'], sourceRefs });
     const task = { ...note, artifactKind: 'task' };
-    syncNoteOwner(task);
     await store.update(state => {
       const index = state.notes.findIndex(item => item.id === task.id);
       if (index >= 0) state.notes[index] = task;
@@ -1662,7 +1678,6 @@ export function createApp({
     const link = `[[${String(targetTitle).trim()}${anchor ? `#${String(anchor).trim()}` : ''}]]`;
     if (String(current.content || '').includes(link)) return noteWithAttachments(current);
     const updated = { ...current, content: `${String(current.content || '').replace(/\s*$/u, '')}${current.content ? '\n\n' : ''}${link}\n`, updatedAt: new Date().toISOString() };
-    syncNoteOwner(updated);
     await store.update(state => {
       const index = state.notes.findIndex(note => note.id === updated.id && !note.deletedAt);
       if (index >= 0) state.notes[index] = updated;
@@ -1744,6 +1759,7 @@ export function createApp({
       createNote: createAgentNote,
       updateNote: updateAgentNote,
       createDraft: createAgentDraft,
+      updateDraft: updateAgentDraft,
       createTask: createAgentTask,
       appendGraphLink: appendAgentGraphLink,
       createFeishuDocument: createAgentFeishuDocument
@@ -1900,10 +1916,12 @@ export function createApp({
 
   app.disable('x-powered-by');
   const jsonBody = express.json({ limit: '16mb' });
+  const backupBody = express.json({ limit: '256mb' });
   const chatAttachmentRawBody = express.raw({ type: () => true, limit: chatAttachments.limits.maxFileBytes });
   const noteAttachmentRawBody = express.raw({ type: () => true, limit: NOTE_ATTACHMENT_MAX_FILE_BYTES });
   app.use((req, res, next) => {
     if (req.path === '/api/content/import/file') return next();
+    if (req.method === 'POST' && req.path === '/api/content/backup/restore') return backupBody(req, res, next);
     if (req.method === 'POST' && /^\/api\/notes\/[^/]+\/attachments$/.test(req.path)) return noteAttachmentRawBody(req, res, next);
     if (req.path === '/api/chat/attachments' && req.method === 'POST' && !req.is('application/json')) return chatAttachmentRawBody(req, res, next);
     return jsonBody(req, res, next);
@@ -2744,7 +2762,6 @@ export function createApp({
       const quote = annotation.quote ? '> ' + annotation.quote : '';
       const documentAnnotation = Number(annotation.pageNumber) === 1 && !annotation.attachmentId;
       const note = { id: id('note'), title: String(req.body?.title || (documentAnnotation ? `${item.title} · 标注` : `${item.title} · 第 ${annotation.pageNumber} 页标注`)), content: [quote, annotation.comment].filter(Boolean).join('\n\n'), tags: Array.isArray(req.body?.tags) ? [...new Set(req.body.tags.map(String).map(value => value.trim()).filter(Boolean))] : (documentAnnotation ? ['文档标注'] : ['PDF标注']), sourceRefs: bindCurrentSourceRefs([{ documentId: item.id, pageNumber: annotation.pageNumber, anchor: annotation.anchor, annotationId: annotation.id, excerpt: annotation.quote || annotation.comment || '' }]), archived: false, createdAt: timestamp, updatedAt: timestamp };
-      syncNoteOwner(note);
       await store.update((state) => { state.notes ||= []; state.notes.unshift(note); });
       graphIndex.rebuild();
       res.status(201).json({ ok: true, note, annotation });
@@ -2763,7 +2780,8 @@ export function createApp({
       if (!fileName) return res.status(400).json({ ok: false, error: { code: 'FILE_NAME_REQUIRED', message: '缺少 x-file-name 请求头' } });
       const result = await ingestion.ingest({ items: [{ fileName, bytes: req.body, mimeType: req.headers['content-type'], lastModified: req.headers['x-file-last-modified'] }] });
       const graph = graphIndex.rebuild();
-      res.status(201).json({ ok: true, job: result.job, stats: result.stats, warnings: result.warnings, graph: graph.stats, items: result.results.map((entry) => ({ index: entry.index, action: entry.action, item: publicContentItem(entry.item) })) });
+      const response = ingestionHttpResult(result, { graph, publicItem: publicContentItem });
+      res.status(response.status).json(response.body);
     } catch (error) { next(error); }
   });
 
@@ -2776,7 +2794,8 @@ export function createApp({
       });
       const result = await ingestion.ingest({ items, jobId: req.body?.jobId, dedupeKey: req.body?.dedupeKey });
       const graph = graphIndex.rebuild();
-      res.status(201).json({ ok: true, job: result.job, stats: result.stats, warnings: result.warnings, graph: graph.stats, items: result.results.map((entry) => ({ index: entry.index, action: entry.action, item: publicContentItem(entry.item) })) });
+      const response = ingestionHttpResult(result, { graph, publicItem: publicContentItem });
+      res.status(response.status).json(response.body);
     } catch (error) { next(error); }
   });
 
@@ -2947,7 +2966,6 @@ export function createApp({
             artifactKind: 'problem',
             updatedAt: timestamp
           };
-          syncNoteOwner(artifact);
           await store.update((state) => {
             state.notes = (state.notes || []).map(note => note.id === artifact.id ? artifact : note);
           });
@@ -2955,14 +2973,12 @@ export function createApp({
           appended = true;
         } else {
           artifact = { id: id('note'), ...payload, artifactKind: 'problem', archived: false, createdAt: timestamp, updatedAt: timestamp };
-          syncNoteOwner(artifact);
           await store.update((state) => { state.notes.unshift(artifact); });
           graphIndex.rebuild();
         }
         workspace = 'notes';
       } else {
         artifact = { id: id(kind === 'task' ? 'task' : 'note'), ...payload, artifactKind: kind, archived: false, createdAt: timestamp, updatedAt: timestamp };
-        syncNoteOwner(artifact);
         await store.update((state) => { state.notes.unshift(artifact); });
         graphIndex.rebuild();
         workspace = 'notes';
@@ -3276,7 +3292,7 @@ export function createApp({
         documentIds: req.body?.documentIds
       });
       const requestBody = readerLock
-        ? { ...req.body, documentIds: readerLock.documentIds, includeKnowledgeBase: false, surface: 'reader', readerDocumentId: readerLock.readerDocumentId }
+        ? { ...req.body, documentIds: readerLock.documentIds, includeKnowledgeBase: false, surface: readerLock.surface, readerDocumentId: readerLock.readerDocumentId }
         : (req.body || {});
       const documentScope = hydrateScopedDocuments(content, resolveAgentDocumentScope(availableDocuments, requestBody, existingConversation));
       if (documentScope.missingDocumentIds.length) throw documentScopeError(documentScope);
@@ -3323,9 +3339,10 @@ export function createApp({
       const persistChat = async ({ answer, citations, relations, citationIntegrity, modelInfo }) => {
         const completedAt = new Date().toISOString();
         const conversationId = existingConversation?.id || requestId;
-        const isReaderSurface = String(requestBody?.surface || existingConversation?.surface || '') === 'reader';
-        const readerDocumentId = String(requestBody?.readerDocumentId || existingConversation?.readerDocumentId || (isReaderSurface ? (documentScope.documentIds[0] || '') : '')).trim();
-        const surfaceRecord = isReaderSurface ? { surface: 'reader', readerDocumentId } : { surface: existingConversation?.surface || 'chat' };
+        const lockedSurface = String(requestBody?.surface || existingConversation?.surface || '');
+        const isLockedSurface = lockedSurface === 'reader' || lockedSurface === 'note-assistant';
+        const readerDocumentId = String(requestBody?.readerDocumentId || existingConversation?.readerDocumentId || (isLockedSurface ? (documentScope.documentIds[0] || '') : '')).trim();
+        const surfaceRecord = isLockedSurface ? { surface: lockedSurface, readerDocumentId } : { surface: existingConversation?.surface || 'chat' };
         const scopeRecord = conversationScope(documentScope, { origin: documentScope.scopeOrigin || 'request', updatedAt: completedAt });
         const userMessage = { id: id('msg'), role: 'user', content: question, attachments: attachmentContext.attachments, documentIds: [...scopeRecord.documentIds], selection: publicQuestionSelection(questionSelection), mode: 'chat', createdAt: completedAt };
         const assistantMessage = { id: id('msg'), role: 'assistant', content: answer, citations, relations, citationIntegrity, scopeContext: selectedScopeContext.summary, model: modelInfo, documentIds: [...scopeRecord.documentIds], mode: 'chat', createdAt: completedAt };
@@ -3568,7 +3585,6 @@ export function createApp({
       const timestamp = new Date().toISOString();
       const artifactKind = ['note', 'problem', 'task', 'writing'].includes(String(req.body?.artifactKind || '')) ? String(req.body.artifactKind) : (Array.isArray(req.body?.tags) && req.body.tags.map(String).some(tag => tag.includes('问题记录')) ? 'problem' : undefined);
       const note = { id: id('note'), title: String(req.body?.title || '无标题笔记').trim() || '无标题笔记', content: String(req.body?.content || ''), tags: Array.isArray(req.body?.tags) ? [...new Set(req.body.tags.map(String).map((value) => value.trim()).filter(Boolean))] : [], sourceRefs: bindCurrentSourceRefs(Array.isArray(req.body?.sourceRefs) ? req.body.sourceRefs : []), attachments: [], archived: false, createdAt: timestamp, updatedAt: timestamp, ...(artifactKind ? { artifactKind } : {}) };
-      syncNoteOwner(note);
       await store.update((state) => { state.notes.unshift(note); });
       graphIndex.rebuild();
       res.status(201).json({ ok: true, note: noteWithAttachments(note) });
@@ -3576,11 +3592,18 @@ export function createApp({
   });
   app.patch('/api/notes/:id', async (req, res, next) => {
     try {
-      const current = store.get().notes.find((item) => item.id === req.params.id && !item.deletedAt);
-      if (!current) return res.status(404).json({ ok: false, error: { code: 'NOTE_NOT_FOUND', message: '笔记不存在' } });
-      const updated = { ...current, ...(req.body?.title !== undefined ? { title: String(req.body.title).trim() || '无标题笔记' } : {}), ...(req.body?.content !== undefined ? { content: String(req.body.content) } : {}), ...(Array.isArray(req.body?.tags) ? { tags: [...new Set(req.body.tags.map(String).map((value) => value.trim()).filter(Boolean))] } : {}), ...(req.body?.sourceRefs !== undefined ? { sourceRefs: bindCurrentSourceRefs(Array.isArray(req.body.sourceRefs) ? req.body.sourceRefs : []) } : {}), ...(req.body?.archived !== undefined ? { archived: Boolean(req.body.archived) } : {}), updatedAt: new Date().toISOString() };
-      syncNoteOwner(updated);
-      await store.update((state) => { const index = state.notes.findIndex((item) => item.id === req.params.id && !item.deletedAt); if (index >= 0) state.notes[index] = updated; });
+      let updated;
+      await store.update((state) => {
+        const index = state.notes.findIndex((item) => item.id === req.params.id && !item.deletedAt);
+        if (index < 0) return;
+        const current = state.notes[index];
+        if (req.body?.baseVersion !== undefined && String(req.body.baseVersion) !== String(current.contentVersionId)) {
+          throw Object.assign(new Error('这篇笔记已在其他位置更新。请保留当前编辑，重新打开最新版本后合并，避免覆盖。'), { code: 'NOTE_VERSION_CONFLICT', status: 409 });
+        }
+        updated = { ...current, ...(req.body?.title !== undefined ? { title: String(req.body.title).trim() || '无标题笔记' } : {}), ...(req.body?.content !== undefined ? { content: String(req.body.content) } : {}), ...(Array.isArray(req.body?.tags) ? { tags: [...new Set(req.body.tags.map(String).map((value) => value.trim()).filter(Boolean))] } : {}), ...(req.body?.sourceRefs !== undefined ? { sourceRefs: bindCurrentSourceRefs(Array.isArray(req.body.sourceRefs) ? req.body.sourceRefs : []) } : {}), ...(req.body?.archived !== undefined ? { archived: Boolean(req.body.archived) } : {}), updatedAt: new Date().toISOString() };
+        state.notes[index] = updated;
+      });
+      if (!updated) return res.status(404).json({ ok: false, error: { code: 'NOTE_NOT_FOUND', message: '笔记不存在' } });
       graphIndex.rebuild();
       res.json({ ok: true, note: noteWithAttachments(updated) });
     } catch (error) { next(error); }
@@ -3634,13 +3657,15 @@ export function createApp({
       if (!note) return res.status(404).json({ ok: false, error: { code: 'NOTE_NOT_FOUND', message: '笔记不存在' } });
       const preview = await fetchPublicPagePreview(req.body?.url);
       const markdown = webClipMarkdown({ title: preview.title, url: preview.url, excerpt: preview.excerpt });
-      const content = `${String(note.content || '').trim()}${note.content?.trim() ? '\n\n' : ''}${markdown}`.trim();
-      const sourceRefs = mergeNoteSourceRefs(note.sourceRefs, [webClipSourceRef({ url: preview.url, title: preview.title, excerpt: preview.excerpt })].filter(Boolean));
-      const updated = { ...note, content, sourceRefs, updatedAt: new Date().toISOString() };
-      syncNoteOwner(updated);
+      let updated;
       await store.update((state) => {
         const index = state.notes.findIndex((item) => item.id === note.id && !item.deletedAt);
-        if (index >= 0) state.notes[index] = updated;
+        if (index < 0) throw Object.assign(new Error('笔记已删除，未追加网页'), { code: 'NOTE_NOT_FOUND', status: 404 });
+        const current = state.notes[index];
+        const body = `${String(current.content || '').trim()}${current.content?.trim() ? '\n\n' : ''}${markdown}`.trim();
+        const sourceRefs = mergeNoteSourceRefs(current.sourceRefs, [webClipSourceRef({ url: preview.url, title: preview.title, excerpt: preview.excerpt })].filter(Boolean));
+        updated = { ...current, content: body, sourceRefs, updatedAt: new Date().toISOString() };
+        state.notes[index] = updated;
       });
       graphIndex.rebuild();
       res.status(201).json({ ok: true, note: noteWithAttachments(updated), preview, markdown });
@@ -4103,6 +4128,9 @@ export function createApp({
       return res.status(413).json({ ok: false, error: { code: 'ATTACHMENT_TOO_LARGE', message: '\u4e0a\u4f20\u9644\u4ef6\u8d85\u8fc7\u5141\u8bb8\u7684\u5927\u5c0f\u9650\u5236\u3002', details: { maxFileBytes: chatAttachments.limits.maxFileBytes } } });
     }    if (error?.type === 'entity.too.large' && /^\/api\/notes\/[^/]+\/attachments$/.test(req.path)) {
       return res.status(413).json({ ok: false, error: { code: 'NOTE_ATTACHMENT_TOO_LARGE', message: '笔记附件超过 32 MB 大小限制。', details: { maxFileBytes: NOTE_ATTACHMENT_MAX_FILE_BYTES } } });
+    }
+    if (error?.type === 'entity.too.large' && req.path === '/api/content/backup/restore') {
+      return res.status(413).json({ ok: false, error: { code: 'BACKUP_TOO_LARGE', message: '备份超过当前 256 MB 恢复限制，未开始恢复。请保留原文件。' } });
     }
     const exposed = publicError(error);
     const status = error?.type === 'entity.too.large' ? 413 : Math.max(400, Math.min(599, Number(error?.status || error?.statusCode || 500)));

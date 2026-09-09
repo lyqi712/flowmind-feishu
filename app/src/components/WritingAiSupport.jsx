@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, Check, Link2, LoaderCircle, Plus, Sparkles } from 'lucide-react';
+import { applyPageAiResult, normalizePageAiResult } from '../workspace/page-architecture.js';
 
 export const WRITING_AI_ACTIONS = Object.freeze([
   { id: 'polish', label: '润色', description: '优化表达、语法和节奏，不改变事实与结构' },
@@ -37,27 +38,11 @@ export function buildWritingAiPrompt({ action = 'polish', tone = WRITING_AI_TONE
 }
 
 export function normalizeWritingAiResult(value = '') {
-  let text = String(value || '').trim();
-  const fenced = text.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/i);
-  if (fenced) text = fenced[1].trim();
-  const lines = text.split('\n');
-  if (lines.length >= 3 && /^\s*---+\s*$/.test(lines[0]) && /^\s*---+\s*$/.test(lines.at(-1))) text = lines.slice(1, -1).join('\n').trim();
-  return text;
+  return normalizePageAiResult(value);
 }
 
 export function applyWritingAiResult({ content = '', result = '', range = {}, mode = 'replace' } = {}) {
-  const source = String(content || '');
-  const generated = normalizeWritingAiResult(result);
-  if (!generated) throw new Error('AI 结果为空，暂时没有可写入的内容');
-  const start = Math.max(0, Math.min(source.length, Number(range?.start) || 0));
-  const end = Math.max(start, Math.min(source.length, Number(range?.end) || start));
-  if (mode === 'replace') return { content: `${source.slice(0, start)}${generated}${source.slice(end)}`, selection: { start, end: start + generated.length } };
-  if (mode !== 'insert') throw new Error(`未知写入方式：${mode}`);
-  const before = source.slice(0, end);
-  const after = source.slice(end);
-  const prefix = !before ? '' : before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
-  const suffix = !after ? '' : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
-  return { content: `${before}${prefix}${generated}${suffix}${after}`, selection: { start: end + prefix.length, end: end + prefix.length + generated.length } };
+  return applyPageAiResult({ content, result, range, mode });
 }
 
 export async function readWritingAiStream(response, { onDelta } = {}) {

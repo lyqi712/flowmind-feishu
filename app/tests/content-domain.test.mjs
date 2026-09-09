@@ -46,6 +46,46 @@ test('schema migrations support latest migration, FTS capability status, rollbac
   } finally { repo.close(); }
 });
 
+test('schema v5 copies v4 jobs, content and attachment blobs without dropping user rows', () => {
+  const repo = repository({ autoMigrate: false, forceSearchFallback: true });
+  try {
+    assert.equal(repo.migrate(4).version, 4);
+    const source = repo.upsertSourceConnection({ sourceType: 'local', externalId: 'v4-src', name: 'V4 source' });
+    const space = repo.upsertSpace({ sourceConnectionId: source.id, externalId: 'v4-space', name: 'V4 space' });
+    const created = repo.upsertContentItem({
+      sourceConnectionId: source.id, spaceId: space.id, externalId: 'v4-doc', contentType: 'markdown',
+      title: 'Keep v4 item', content: 'V4_CONTENT_MARKER', revision: '1', metadata: { kept: true }
+    });
+    const attachment = repo.upsertAttachment({
+      contentItemId: created.item.id, externalId: 'keep-file', fileName: 'keep.bin',
+      mimeType: 'application/octet-stream', data: Buffer.from('V4_BLOB_BYTES')
+    });
+    const job = repo.createIngestionJob({
+      sourceConnectionId: source.id, spaceId: space.id, jobType: 'import', status: 'completed',
+      cursor: '2', dedupeKey: 'v4-job-key', stats: { total: 2, processed: 2, created: 1, failed: 1 },
+      metadata: { warningCount: 1, note: 'keep-job-meta' }
+    });
+    assert.throws(() => repo.updateIngestionJob(job.id, { status: 'partial' }), (error) => /CHECK constraint failed/i.test(String(error.message)));
+
+    assert.equal(repo.migrate(5).version, 5);
+    const item = repo.getContentItem(created.item.id);
+    assert.equal(item.title, 'Keep v4 item');
+    assert.equal(item.content, 'V4_CONTENT_MARKER');
+    assert.equal(item.metadata.kept, true);
+    assert.equal(repo.getContentVersions(created.item.id).length, 1);
+    assert.equal(repo.listAttachments(created.item.id).length, 1);
+    assert.deepEqual(repo.getAttachmentData(attachment.id), Buffer.from('V4_BLOB_BYTES'));
+    const migratedJob = repo.getIngestionJob(job.id);
+    assert.equal(migratedJob.status, 'completed');
+    assert.equal(migratedJob.cursor, '2');
+    assert.equal(migratedJob.dedupeKey, 'v4-job-key');
+    assert.equal(migratedJob.stats.created, 1);
+    assert.equal(migratedJob.stats.failed, 1);
+    assert.equal(migratedJob.metadata.note, 'keep-job-meta');
+    assert.equal(repo.updateIngestionJob(job.id, { status: 'partial' }).status, 'partial');
+  } finally { repo.close(); }
+});
+
 test('SourceConnection and Space upsert are stable and source+externalId content upsert creates revision/hash versions', () => {
   const repo = repository({ forceSearchFallback: true });
   try {
@@ -274,7 +314,7 @@ test('content ingestion parses local text formats, indexes chunks, isolates unsu
   try {
     const service = new ContentIngestionService({ repository: repo, chunkOptions: { maxChars: 280, overlapChars: 40 } });
     const result = await service.ingest({ items: Object.values(files), dedupeKey: 'local-fixtures' });
-    assert.equal(result.job.status, 'completed');
+    assert.equal(result.job.status, 'partial');
     assert.equal(result.stats.processed, 7);
     assert.equal(result.stats.created, 5);
     assert.equal(result.stats.duplicates, 1);

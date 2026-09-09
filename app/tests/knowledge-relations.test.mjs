@@ -145,7 +145,8 @@ test('analyzeKnowledgeRelations deterministically builds a cross-document knowle
   assert.ok(first.consensus.some((entry) => entry.summary.includes('知识关联必须保留可点击来源')));
   assert.ok(first.conflicts.some((entry) => entry.viewpoints.some((viewpoint) => viewpoint.statement.includes('应该启用自动审批'))));
   assert.deepEqual(first.timeline.map((entry) => entry.date), ['2026-07-01', '2026-07-15', '2026-08-01']);
-  assert.ok(first.followUpSuggestions.length >= 3);
+  assert.ok(first.followUpSuggestions.length >= 1);
+  assert.ok(first.followUpSuggestions.length <= 2);
 
   const serialized = JSON.stringify(first);
   assert.doesNotMatch(serialized, /FlowMind-private|roadmap\.md|[A-Za-z]:\\/);
@@ -171,7 +172,28 @@ test('history rewrites ambiguous follow-up questions and citation coverage expos
   assert.equal(result.citationCoverage.unsupportedClaims, 1);
   assert.equal(result.citationCoverage.level, 'medium');
   assert.ok(result.citationCoverage.uncoveredClaims.some((claim) => claim.includes('2027')));
-  assert.ok(result.followUpSuggestions.some((suggestion) => /没对齐|不一致|时间线|核对|出处|下一步/.test(suggestion)));
+  assert.ok(result.followUpSuggestions.some((suggestion) => /不一致|时间线|下一步|对照|没对上/.test(suggestion)));
+});
+
+test('comparison follow-ups do not restate the original contrast question', () => {
+  const result = analyze({
+    question: '对比 Hermes Agent 和 Agent Loop 这两份材料，它们对长时运行幻觉、可验证闭环分别怎么说',
+    answer: 'Hermes 讲 Harness [1]。Agent Loop 讲责任闭环 [2]。'
+  });
+  assert.ok(result.followUpSuggestions.every((suggestion) => !/分别怎么说|关键差异和互补/.test(suggestion)));
+});
+
+test('candidateRelationSuggestionsFromRelations does not invent pairs just because a comparison cited two docs', () => {
+  const result = candidateRelationSuggestionsFromRelations({
+    intent: { type: 'comparison', requiresCrossDocument: true },
+    relatedDocuments: [
+      { documentId: 'doc-a', relationReason: '对比来源', score: 90, sourceRefs: [] },
+      { documentId: 'doc-b', relationReason: '对比来源', score: 80, sourceRefs: [] }
+    ],
+    knowledgeMap: { bidirectionalLinks: [] },
+    conflicts: []
+  }, { citations: [{ documentId: 'doc-a' }, { documentId: 'doc-b' }] });
+  assert.deepEqual(result, []);
 });
 
 test('Map chunks are accepted and normalized without exposing arbitrary document metadata', () => {

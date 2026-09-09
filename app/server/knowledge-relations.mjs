@@ -596,27 +596,31 @@ function calculateCitationCoverage(answer, citations, relatedDocuments) {
   };
 }
 
-function buildFollowUps(intent, relatedDocuments, consensus, conflicts, timeline, citationCoverage) {
+function buildFollowUps(intent, relatedDocuments, consensus, conflicts, timeline, citationCoverage, question = '') {
+  const asked = String(question || '');
+  const alreadyComparing = /对比|比较|分别|差异|差在|有什么联系|冲突/.test(asked);
   const suggestions = [];
-  if (relatedDocuments.length > 1) {
-    suggestions.push(`「${relatedDocuments[0].title}」和「${relatedDocuments[1].title}」还有哪些没对齐的地方？`);
-  }
   if (conflicts.length) {
-    suggestions.push(`「${conflicts[0].topic}」两边说法不一致，该信哪边？`);
+    const topic = conflicts[0].topic || conflicts[0].name || '这个说法';
+    suggestions.push(`「${topic}」两边说法不一致，该信哪边？`);
   }
-  if (timeline.length > 1) {
-    suggestions.push('按时间线讲讲关键节点为什么变了。');
+  if (timeline.length > 1) suggestions.push('按时间线讲讲关键节点为什么变了。');
+  if (intent.type === 'action') suggestions.push('基于这些材料，下一步最值得先动哪一件事？');
+  if (!alreadyComparing && relatedDocuments.length > 1) {
+    const title = relatedDocuments[1]?.title || relatedDocuments[0].title;
+    suggestions.push(`「${title}」里还有哪段值得对照？`);
   }
-  if (consensus.length > 1 && relatedDocuments.length > 1) {
-    suggestions.push('把几篇的共识收成一份可执行的核对清单。');
+  if (alreadyComparing && !suggestions.length && relatedDocuments[0]?.title) {
+    suggestions.push(`「${relatedDocuments[0].title}」中哪段原文最能支持刚才的结论？`);
   }
-  if (citationCoverage.level === 'low' && relatedDocuments.length > 1) {
-    suggestions.push('还有哪些出处需要再钉一下？');
-  }
-  if (intent.type === 'action' && relatedDocuments.length > 1) {
-    suggestions.push('基于这些材料，下一步最值得先动哪一件事？');
-  }
-  return unique(suggestions).slice(0, 3);
+  return unique(suggestions)
+    .filter((item) => {
+      const askedTokens = tokenSet(asked);
+      const itemTokens = tokenSet(item);
+      if (!askedTokens.size || !itemTokens.size) return true;
+      return jaccard(askedTokens, itemTokens) < 0.42;
+    })
+    .slice(0, 2);
 }
 
 function buildKnowledgeMap(rewrittenQuestion, topics, entities, relatedDocuments) {
@@ -657,14 +661,8 @@ function buildKnowledgeMap(rewrittenQuestion, topics, entities, relatedDocuments
   return { nodes, edges, bidirectionalLinks: bidirectionalLinks.sort((left, right) => right.strength - left.strength).slice(0, 16) };
 }
 
-const RESEARCH_RELATION_INTENTS = new Set(['comparison', 'relationship', 'conflict', 'timeline']);
-
 function citedDocumentIds(citations = []) {
   return unique((Array.isArray(citations) ? citations : []).map((ref) => normalizeSpace(ref?.documentId || ref?.id))).filter(Boolean);
-}
-
-function isResearchRelationIntent(intent = {}) {
-  return Boolean(intent?.requiresCrossDocument) || RESEARCH_RELATION_INTENTS.has(String(intent?.type || ''));
 }
 
 export function candidateRelationSuggestionsFromRelations(relations = {}, { citations = [] } = {}) {
@@ -718,19 +716,6 @@ export function candidateRelationSuggestionsFromRelations(relations = {}, { cita
     }
   }
 
-  if (!pairs.length && isResearchRelationIntent(relations?.intent)) {
-    const related = (relations.relatedDocuments || []).filter((entry) => cited.has(normalizeSpace(entry.documentId)));
-    if (related.length >= 2) {
-      addPair(
-        related[0].documentId,
-        related[1].documentId,
-        related[0].relationReason || related[1].relationReason || '回答同时引用了这两篇资料',
-        [...(related[0].sourceRefs || []).slice(0, 1), ...(related[1].sourceRefs || []).slice(0, 1)],
-        Math.min(Number(related[0].score) || 0, Number(related[1].score) || 0)
-      );
-    }
-  }
-
   return pairs.sort((left, right) => right.strength - left.strength || left.sourceContentItemId.localeCompare(right.sourceContentItemId)).slice(0, 3);
 }
 
@@ -752,7 +737,7 @@ export function analyzeKnowledgeRelations({ documents = [], chunksByDocument = {
   const conflicts = findConflicts(records);
   const timeline = findTimeline(records);
   const citationCoverage = calculateCitationCoverage(answer, normalizedCitations, relatedDocuments);
-  const followUpSuggestions = buildFollowUps(intent, relatedDocuments, consensus, conflicts, timeline, citationCoverage);
+  const followUpSuggestions = buildFollowUps(intent, relatedDocuments, consensus, conflicts, timeline, citationCoverage, rewrittenQuestion);
   const knowledgeMap = buildKnowledgeMap(rewrittenQuestion, topics, entities, relatedDocuments);
   return {
     rewrittenQuestion,

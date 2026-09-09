@@ -47,6 +47,8 @@ test('question understanding exposes intent, rewrite, plan and citation coverage
 
 test('knowledge discovery shows topics, entities and scored related document cards', () => {
   includesAll(component, [
+    'deep-answer-process',
+    '分析过程',
     '知识线索',
     '相关主题',
     '相关实体',

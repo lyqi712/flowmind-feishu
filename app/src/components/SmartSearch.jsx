@@ -18,7 +18,11 @@ export default function SmartSearch({
   const inputRef = useRef(null);
   const recentSearches = normalizeSearchHistory(searchHistory);
   const suggestions = query.trim()
-    ? generateSuggestions(query, { recentSearches, trendingTopics, documents })
+    ? generateSuggestions(query, {
+      recentSearches: activeTab === 'all' || activeTab === 'conversations' ? recentSearches : [],
+      trendingTopics: activeTab === 'all' || activeTab === 'tags' ? trendingTopics : [],
+      documents: activeTab === 'all' || activeTab === 'documents' ? documents : []
+    })
     : [];
 
   useEffect(() => {

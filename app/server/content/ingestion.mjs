@@ -5,6 +5,11 @@ import { OFFICE_LOCAL_PARSERS } from './office-parsers.mjs';
 import { PDF_LOCAL_PARSERS } from './pdf-parser.mjs';
 import { IMAGE_LOCAL_PARSERS } from './image-parser.mjs';
 import { AUDIO_LOCAL_PARSERS } from './audio-parser.mjs';
+import {
+  applyIngestActionToStats, buildOriginalAttachment, defaultUploadExternalId, emptyIngestStats,
+  hasExplicitExternalId, isOriginalAttachment, resolveIngestionJobStatus, shouldSkipIngestIndex,
+  statsFromSuccessfulOutcomes
+} from './ingestion-policy.mjs';
 
 function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
 function abortError() { return Object.assign(new Error('导入任务已取消'), { name: 'AbortError', code: 'INGESTION_CANCELLED' }); }
@@ -156,8 +161,8 @@ export class ContentIngestionService {
       mimeType: parsed.mimeType || 'text/plain', revision: `${Math.trunc(info.mtimeMs)}:${fileHash.slice(0, 16)}`,
       sourceUrl: `file://${absolutePath.replace(/\\/g, '/')}`, sourceCreatedAt: info.birthtime, sourceModifiedAt: info.mtime,
       metadata: { ...(parsed.metadata || {}), localPath: absolutePath, fileName: basename(absolutePath), byteSize: info.size, fileHash },
-      pageSegments: parsed.pageSegments || [], tags: parsed.tags || [],
-      attachments: ['pdf', 'image', 'audio'].includes(parsed.contentType) ? [{ externalId: 'original', fileName: basename(absolutePath), mimeType: parsed.mimeType || 'application/octet-stream', byteSize: bytes.length, contentHash: fileHash, data: bytes, metadata: { kind: 'original', persisted: true } }] : []
+      pageSegments: parsed.pageSegments || [], tags: parsed.tags || [], explicitExternalId: false,
+      attachments: buildOriginalAttachment({ fileName: basename(absolutePath), mimeType: parsed.mimeType, bytes, fileHash })
     };
   }
 
@@ -174,13 +179,14 @@ export class ContentIngestionService {
     const parsed = await parser({ text, bytes, path: fileName, extension, stat: { size: bytes.length }, signal });
     const content = normalizeWhitespace(parsed.content);
     if (!content) throw Object.assign(new Error(`文件解析后没有可索引正文: ${fileName}`), { code: 'CONTENT_EMPTY', fileName });
+    const explicitExternalId = hasExplicitExternalId(input);
     return {
-      externalId: String(input.externalId || `upload:${sha256(fileName.toLowerCase()).slice(0, 32)}`),
+      externalId: explicitExternalId ? String(input.externalId).trim() : defaultUploadExternalId(fileHash, fileName),
       title: parsed.title || inferTitle(fileName, content), content, contentType: parsed.contentType || extension.slice(1) || 'document',
       mimeType: parsed.mimeType || input.mimeType || 'application/octet-stream', revision: fileHash, sourceUrl: null,
-      sourceModifiedAt: normalizeOptionalDate(input.lastModified),
+      sourceModifiedAt: normalizeOptionalDate(input.lastModified), explicitExternalId,
       metadata: { ...(parsed.metadata || {}), fileName, byteSize: bytes.length, fileHash, uploaded: true }, pageSegments: parsed.pageSegments || [], tags: parsed.tags || [],
-      attachments: ['pdf', 'image', 'audio'].includes(parsed.contentType) ? [{ externalId: 'original', fileName, mimeType: parsed.mimeType || input.mimeType || 'application/octet-stream', byteSize: bytes.length, contentHash: fileHash, data: bytes, metadata: { kind: 'original', persisted: true } }] : []
+      attachments: buildOriginalAttachment({ fileName, mimeType: parsed.mimeType || input.mimeType, bytes, fileHash })
     };
   }
 
@@ -191,63 +197,113 @@ export class ContentIngestionService {
     if (!input || typeof input !== 'object') throw Object.assign(new TypeError('导入项必须是文件路径或内容对象'), { code: 'INGESTION_INPUT_INVALID' });
     const content = normalizeWhitespace(input.content);
     if (!content) throw Object.assign(new Error('导入内容为空'), { code: 'CONTENT_EMPTY' });
-    return { ...input, content, title: String(input.title || input.fileName || input.name || '未命名内容'), externalId: String(input.externalId || `inline:${sha256(`${input.title || input.fileName || input.name || ''}\n${content}`)}`), contentType: input.contentType || 'document' };
+    const explicitExternalId = hasExplicitExternalId(input);
+    return {
+      ...input, content, title: String(input.title || input.fileName || input.name || '未命名内容'),
+      externalId: explicitExternalId ? String(input.externalId).trim() : `inline:${sha256(`${input.title || input.fileName || input.name || ''}\n${content}`)}`,
+      contentType: input.contentType || 'document', explicitExternalId
+    };
   }
 
   findHashDuplicate(sourceConnectionId, fileHash) {
-    if (!fileHash) return null;
-    return this.repository.listContentItems({ sourceConnectionId, includeTags: true, limit: 1000 }).find((item) => item.metadata?.fileHash === fileHash) || null;
+    return this.repository.getContentItemByFileHash(sourceConnectionId, fileHash, { includeTags: true });
+  }
+
+  persistParsedAttachments(result, normalized) {
+    for (const attachment of normalized.attachments || []) {
+      const original = isOriginalAttachment(attachment);
+      if (original) {
+        const existing = this.repository.getOriginalAttachment(result.item.id, { contentVersionId: result.item.currentVersionId });
+        if (existing?.contentHash && existing.contentHash === attachment.contentHash) continue;
+      }
+      this.repository.upsertAttachment({
+        ...attachment,
+        contentItemId: result.item.id,
+        externalId: original ? `original:${result.item.currentVersionId}` : attachment.externalId,
+        metadata: original ? { ...(attachment.metadata || {}), kind: 'original', contentVersionId: result.item.currentVersionId } : attachment.metadata
+      });
+    }
+  }
+
+  commitIngestedItem({ reuseDuplicate, duplicate, normalized, target }) {
+    return this.repository.transaction(() => {
+      if (reuseDuplicate) {
+        const aliasPaths = [...new Set([...(duplicate.metadata?.aliasPaths || []), normalized.metadata?.localPath].filter(Boolean))];
+        const aliasFileNames = [...new Set([...(duplicate.metadata?.aliasFileNames || []), normalized.metadata?.fileName].filter((name) => name && name !== duplicate.metadata?.fileName))];
+        const result = this.repository.upsertContentItem({
+          sourceConnectionId: duplicate.sourceConnectionId, spaceId: duplicate.spaceId || target.space.id, externalId: duplicate.externalId,
+          contentType: duplicate.contentType, title: duplicate.title, content: duplicate.content, revision: duplicate.revision, mimeType: duplicate.mimeType,
+          sourceUrl: duplicate.sourceUrl, sourceModifiedAt: duplicate.sourceModifiedAt,
+          metadata: { ...duplicate.metadata, aliasPaths, aliasFileNames }, tags: duplicate.tags || []
+        });
+        this.persistParsedAttachments(result, normalized);
+        return { action: 'duplicate', item: result.item };
+      }
+      const result = this.repository.upsertContentItem({ ...normalized, sourceConnectionId: target.source.id, spaceId: normalized.spaceId || target.space.id });
+      this.repository.replaceIndexChunks(result.item.id, buildIndexChunks(normalized, this.chunkOptions), { contentVersionId: result.item.currentVersionId });
+      this.persistParsedAttachments(result, normalized);
+      return { action: result.action, item: result.item };
+    });
   }
 
   async ingest({ items = [], sourceConnection, space, dedupeKey, jobId, signal, onProgress } = {}) {
     if (!Array.isArray(items) || !items.length) throw Object.assign(new Error('items 不能为空'), { code: 'INGESTION_ITEMS_REQUIRED' });
     const target = this.ensureTarget({ sourceConnection, space });
     let job = jobId ? this.repository.getIngestionJob(jobId) : null;
-    if (!job) job = this.repository.createIngestionJob({ sourceConnectionId: target.source.id, spaceId: target.space.id, jobType: 'import', dedupeKey, status: 'pending', cursor: '0', stats: { total: items.length, processed: 0, created: 0, versioned: 0, unchanged: 0, restored: 0, duplicates: 0, failed: 0 }, metadata: { resumable: true } });
+    if (!job) job = this.repository.createIngestionJob({ sourceConnectionId: target.source.id, spaceId: target.space.id, jobType: 'import', dedupeKey, status: 'pending', cursor: '0', stats: emptyIngestStats(items.length), metadata: { resumable: true } });
     const startIndex = Math.max(0, Math.min(items.length, Number(job.cursor || 0)));
-    const stats = { total: items.length, processed: startIndex, created: 0, versioned: 0, unchanged: 0, restored: 0, duplicates: 0, failed: 0, ...(job.stats || {}) };
-    const results = [], warnings = [];
-    job = this.repository.updateIngestionJob(job.id, { status: 'running', cursor: String(startIndex), stats, error: null, metadata: { ...(job.metadata || {}), resumable: true, itemCount: items.length } });
+    const outcomes = { ...(job.metadata?.itemOutcomes || {}) };
+    const hasOutcomes = Object.keys(outcomes).length > 0;
+    const stats = hasOutcomes
+      ? statsFromSuccessfulOutcomes(outcomes, items.length)
+      : { ...emptyIngestStats(items.length), ...(job.stats || {}), total: items.length, processed: startIndex };
+    const warnings = hasOutcomes
+      ? (Array.isArray(job.metadata?.warnings) ? job.metadata.warnings.filter((warning) => outcomes[String(warning.index)]?.action === 'failed') : [])
+      : [];
+    const results = [];
+    job = this.repository.updateIngestionJob(job.id, { status: 'running', cursor: String(startIndex), stats, error: null, metadata: { ...(job.metadata || {}), resumable: true, itemCount: items.length, itemOutcomes: outcomes, warnings } });
+    const persistJob = (status, extra = {}) => {
+      job = this.repository.updateIngestionJob(job.id, {
+        status, cursor: extra.cursor ?? String(stats.processed), stats, error: extra.error ?? null,
+        metadata: { ...(job.metadata || {}), resumable: true, itemCount: items.length, warningCount: warnings.length, itemOutcomes: outcomes, warnings }
+      });
+      return job;
+    };
     try {
-      for (let index = startIndex; index < items.length; index += 1) {
+      for (let index = 0; index < items.length; index += 1) {
+        if (shouldSkipIngestIndex({ index, startIndex, outcomes, hasOutcomes })) {
+          stats.processed = Math.max(stats.processed, index + 1);
+          continue;
+        }
         assertNotAborted(signal);
         try {
           const normalized = await this.normalizeInput(items[index], { signal });
           const duplicate = this.findHashDuplicate(target.source.id, normalized.metadata?.fileHash);
-          let result;
-          if (duplicate && duplicate.externalId !== normalized.externalId) {
-            const aliasPaths = [...new Set([...(duplicate.metadata?.aliasPaths || []), normalized.metadata.localPath].filter(Boolean))];
-            result = this.repository.upsertContentItem({ sourceConnectionId: duplicate.sourceConnectionId, spaceId: duplicate.spaceId || target.space.id, externalId: duplicate.externalId, contentType: duplicate.contentType, title: duplicate.title, content: duplicate.content, revision: duplicate.revision, mimeType: duplicate.mimeType, sourceUrl: duplicate.sourceUrl, sourceModifiedAt: duplicate.sourceModifiedAt, metadata: { ...duplicate.metadata, aliasPaths }, tags: duplicate.tags || [] });
-            stats.duplicates += 1;
-          } else {
-            result = this.repository.upsertContentItem({ ...normalized, sourceConnectionId: target.source.id, spaceId: normalized.spaceId || target.space.id });
-            stats[result.action] = (stats[result.action] || 0) + 1;
-            this.repository.replaceIndexChunks(result.item.id, buildIndexChunks(normalized, this.chunkOptions), { contentVersionId: result.item.currentVersionId });
-            for (const attachment of normalized.attachments || []) {
-              const isOriginal = attachment.externalId === 'original' || attachment.metadata?.kind === 'original';
-              this.repository.upsertAttachment({
-                ...attachment,
-                contentItemId: result.item.id,
-                externalId: isOriginal ? `original:${result.item.currentVersionId}` : attachment.externalId,
-                metadata: isOriginal ? { ...(attachment.metadata || {}), kind: 'original', contentVersionId: result.item.currentVersionId } : attachment.metadata
-              });
-            }
-          }
-          results.push({ index, action: duplicate && duplicate.externalId !== normalized.externalId ? 'duplicate' : result.action, item: result.item });
+          const reuseDuplicate = Boolean(duplicate && duplicate.externalId !== normalized.externalId && !normalized.explicitExternalId);
+          const committed = this.commitIngestedItem({ reuseDuplicate, duplicate, normalized, target });
+          applyIngestActionToStats(stats, committed.action);
+          outcomes[String(index)] = { action: committed.action };
+          const warningIndex = warnings.findIndex((warning) => warning.index === index);
+          if (warningIndex >= 0) warnings.splice(warningIndex, 1);
+          results.push({ index, action: committed.action, item: committed.item });
         } catch (error) {
           if (error?.name === 'AbortError') throw error;
-          stats.failed += 1;
-          warnings.push({ index, code: error.code || 'INGESTION_ITEM_FAILED', message: error.message, path: typeof items[index] === 'string' ? resolve(items[index]) : items[index]?.path ? resolve(items[index].path) : undefined });
+          applyIngestActionToStats(stats, 'failed');
+          const warning = { index, code: error.code || 'INGESTION_ITEM_FAILED', message: error.message, path: typeof items[index] === 'string' ? resolve(items[index]) : items[index]?.path ? resolve(items[index].path) : undefined };
+          const warningIndex = warnings.findIndex((entry) => entry.index === index);
+          if (warningIndex >= 0) warnings.splice(warningIndex, 1);
+          warnings.push(warning);
+          outcomes[String(index)] = { action: 'failed', code: warning.code, message: warning.message };
         }
-        stats.processed = index + 1;
-        job = this.repository.updateIngestionJob(job.id, { status: 'running', cursor: String(index + 1), stats, metadata: { ...(job.metadata || {}), warningCount: warnings.length } });
-        await onProgress?.({ job, index, stats: { ...stats }, result: results.at(-1), warning: warnings.at(-1) });
+        stats.processed = Math.max(stats.processed, index + 1);
+        persistJob('running');
+        await onProgress?.({ job, index, stats: { ...stats }, result: results.at(-1), warning: warnings.find((warning) => warning.index === index) });
       }
-      job = this.repository.updateIngestionJob(job.id, { status: 'completed', cursor: String(items.length), stats, error: null, metadata: { ...(job.metadata || {}), warningCount: warnings.length } });
+      persistJob(resolveIngestionJobStatus({ stats }), { cursor: String(items.length) });
       return { job, results, warnings, stats, source: target.source, space: target.space };
     } catch (error) {
       const cancelled = error?.name === 'AbortError' || error?.code === 'INGESTION_CANCELLED';
-      job = this.repository.updateIngestionJob(job.id, { status: cancelled ? 'cancelled' : 'failed', cursor: String(stats.processed), stats, error: { code: error.code || 'INGESTION_FAILED', message: error.message }, metadata: { ...(job.metadata || {}), warningCount: warnings.length } });
+      persistJob(resolveIngestionJobStatus({ cancelled, jobError: !cancelled, stats }), { error: { code: error.code || 'INGESTION_FAILED', message: error.message } });
       error.job = job; error.results = results; error.warnings = warnings;
       throw error;
     }

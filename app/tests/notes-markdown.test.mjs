@@ -64,8 +64,49 @@ test('note workspace can open a Friday-style assistant rail beside the editor', 
   assert.match(source, /新建问题记录/);
   assert.match(source, /note-selection-bubble/);
   assert.match(source, /note-qa-card/);
+  assert.match(source, /blankNoteDraft/);
+  assert.match(source, /note-empty-hint/);
+  assert.match(source, /note-format-toolbar/);
+  assert.match(source, /resolvePaperChrome/);
+  assert.match(source, /applyPaperTypeKey/);
+  assert.match(source, /typeOnPaper/);
+  assert.match(source, /data-paper-surface/);
+  assert.match(source, /is-look-at-page/);
+  assert.match(source, /is-paper-editing/);
+  assert.match(source, /hidden=\{!paperChrome\.showFormatToolbar\}/);
+  assert.match(source, /onKeyDown=\{showSourceEditor \? undefined : typeOnPaper\}/);
+  assert.match(source, /noteContext/);
+  assert.match(source, /collectNoteDropPayload/);
+  assert.match(source, /handleNotePaste/);
+  assert.match(source, /ingestNotePayload/);
+  assert.match(source, /resolvePageSurface/);
+  assert.match(source, /showLivePage/);
+  assert.match(source, /data-note-live-page/);
+  assert.match(source, /resolvePageAiPlan/);
+  assert.match(source, /applyPageAiResult/);
+  assert.match(source, /pageAiApplyLabel/);
+  assert.match(source, /beginPageEdit/);
+  assert.match(source, /isEmptyBlockCaret/);
+  assert.match(source, /seedBlankNotePage/);
+  assert.match(source, /applyAssistantToPage/);
+  assert.match(source, /buildSelectionAskPrompt/);
+  assert.match(source, /capturePreviewSelection/);
+  assert.match(source, /note-ai-suggest/);
+  assert.match(css, /\.note-ai-suggest/);
+  assert.match(css, /\.note-assistant-quote/);
+  assert.match(source, /note-slash-menu/);
+  assert.match(source, /note-index-embed/);
+  assert.match(source, /buildNotesNavContent/);
+  assert.match(source, /NOTES_INDEX_TOKEN/);
+  assert.match(css, /\.note-slash-menu/);
+  assert.match(css, /\.note-index-embed/);
+  assert.match(css, /\.note-page-cards/);
   assert.match(css, /\.note-selection-bubble/);
   assert.match(css, /\.note-qa-card/);
+  assert.match(css, /\.note-empty-hint/);
+  assert.match(css, /\.note-format-toolbar:not\(\.is-open\)/);
+  assert.doesNotMatch(css, /\.note-editor-canvas:hover>\.note-format-toolbar/);
+  assert.match(css, /\.note-drop-overlay/);
 });
 
 test('note editor keeps a live preview, heading outline and wiki title completion next to the source', () => {
@@ -96,13 +137,15 @@ test('note editor keeps a live preview, heading outline and wiki title completio
 });
 
 test('notes integrate real local image and file insertion without creating a separate media workspace', () => {
-  assert.match(source, /\/api\/notes\/\$\{encodeURIComponent\(draft\.id\)\}\/attachments/);
+  assert.match(source, /\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}\/attachments/);
   assert.match(source, /accept="image\/\*"/);
   assert.match(source, /\}图片<\/button>/);
   assert.match(source, /\}文件<\/button>/);
   assert.match(source, /className="note-inline-image"/);
   assert.match(source, /className="note-attachments-section"/);
   assert.doesNotMatch(source, /AI 生图|图片生成|媒体工作台|PPT|博客/);
+  assert.match(source, /multiple/);
+  assert.match(source, /onDrop=\{handleNoteDrop\}/);
   assert.match(css, /\.markdown-toolbar\{display:flex;flex-flow:row nowrap/);
   assert.match(css, /\.note-inline-image/);
   assert.match(css, /\.note-attachment-row/);

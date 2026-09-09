@@ -69,7 +69,7 @@ test('only greetings and capability questions skip retrieval', () => {
   assert.equal(isAnswerTransformQuestion('改成中文'), true);
   assert.equal(isAnswerTransformQuestion('把这个发到飞书'), false);
   assert.equal(isConfirmationApproval('确认'), true);
-  assert.equal(isConfirmationApproval('好的'), true);
+  assert.equal(isConfirmationApproval('好的'), false); // Acknowledgment is not write authorization.
   assert.equal(isSoftConfirmationApproval('嗯'), true);
   assert.equal(isSoftConfirmationApproval('对'), true);
   assert.equal(isConfirmationRejection('取消'), true);

@@ -17,3 +17,10 @@ nul
 app/*.traineddata
 app/*.traineddata.gz
 .tmp/
+evidence/
+research/crx/
+app/.q.err
+app/build.log
+app/dev.log
+app/mcp-smoke-output.log
+.vscode/

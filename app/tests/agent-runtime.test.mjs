@@ -139,7 +139,7 @@ test('auto conversation retrieves knowledge, classifies write/research, and refu
     const firstSystemPrompt = research.model.messages[0]?.find(message => message.role === 'system')?.content || '';
     assert.match(firstUserPrompt, /UNTRUSTED_DOCUMENT_WINDOWS_BEGIN/);
     assert.match(firstUserPrompt, /Alice owns the release review/);
-    assert.match(firstSystemPrompt, /像懂行的同事|knowledgeable colleague/);
+    assert.match(firstSystemPrompt, /当面说话|coworker|knowledgeable colleague/);
     assert.doesNotMatch(firstSystemPrompt, /Available tools:/);
   } finally { await research.close(); }
 
@@ -546,7 +546,9 @@ test('auto conversation retrieves knowledge, classifies write/research, and refu
         }
       }
     });
-    assert.ok(decided.some(event => event.type === 'confirmation-decision' && event.approved === true));
+    assert.equal(decided.some(event => event.type === 'confirmation-decision'), false);
+    assert.equal(spokenSoft.runtime.getConfirmation(confirmation.id).status, 'pending');
+    assert.match(decided.find(event => event.type === 'done').result.answer, /确认写入/);
     assert.equal(decided.some(event => event.autoRetrieve), false);
   } finally { await spokenSoft.close(); }
 

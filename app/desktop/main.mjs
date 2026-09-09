@@ -225,6 +225,7 @@ if (!hasSingleInstanceLock) {
     logger?.error('unhandled rejection', error);
   });
 
+  async function initializeDesktop() {
   await app.whenReady();
   app.setAppUserModelId('com.flowmind.feishucopilot');
 
@@ -316,4 +317,6 @@ if (!hasSingleInstanceLock) {
     console.log('DESKTOP_SMOKE_OK');
     await shutdown('smoke-test');
   }
+  }
+  await initializeDesktop();
 }

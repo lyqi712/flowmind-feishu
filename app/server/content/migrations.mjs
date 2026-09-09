@@ -1,4 +1,4 @@
-﻿export const LATEST_SCHEMA_VERSION = 4;
+﻿export const LATEST_SCHEMA_VERSION = 5;
 
 const CORE_UP = String.raw`
 CREATE TABLE IF NOT EXISTS repository_meta (
@@ -382,6 +382,65 @@ export const MIGRATIONS = [
         DROP TABLE IF EXISTS graph_suggestions;
         DROP TABLE IF EXISTS graph_edges;
         DROP TABLE IF EXISTS graph_nodes;
+      `);
+    }
+  },
+  {
+    version: 5,
+    name: 'ingestion-job-partial-status',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs_v5 (
+          id TEXT PRIMARY KEY,
+          source_connection_id TEXT REFERENCES source_connections(id) ON DELETE SET NULL,
+          space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL,
+          job_type TEXT NOT NULL DEFAULT 'sync',
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','running','completed','failed','cancelled','partial')),
+          dedupe_key TEXT UNIQUE,
+          cursor TEXT,
+          stats_json TEXT NOT NULL DEFAULT '{}',
+          error_json TEXT,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          started_at TEXT,
+          completed_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO ingestion_jobs_v5 SELECT * FROM ingestion_jobs;
+        DROP TABLE ingestion_jobs;
+        ALTER TABLE ingestion_jobs_v5 RENAME TO ingestion_jobs;
+        CREATE INDEX IF NOT EXISTS idx_jobs_status ON ingestion_jobs(status, created_at DESC);
+      `);
+    },
+    down(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs_v4 (
+          id TEXT PRIMARY KEY,
+          source_connection_id TEXT REFERENCES source_connections(id) ON DELETE SET NULL,
+          space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL,
+          job_type TEXT NOT NULL DEFAULT 'sync',
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','running','completed','failed','cancelled')),
+          dedupe_key TEXT UNIQUE,
+          cursor TEXT,
+          stats_json TEXT NOT NULL DEFAULT '{}',
+          error_json TEXT,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          started_at TEXT,
+          completed_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO ingestion_jobs_v4(
+          id, source_connection_id, space_id, job_type, status, dedupe_key, cursor, stats_json, error_json,
+          metadata_json, started_at, completed_at, created_at, updated_at
+        )
+        SELECT id, source_connection_id, space_id, job_type,
+          CASE status WHEN 'partial' THEN 'failed' ELSE status END, dedupe_key, cursor, stats_json, error_json,
+          metadata_json, started_at, completed_at, created_at, updated_at
+        FROM ingestion_jobs;
+        DROP TABLE ingestion_jobs;
+        ALTER TABLE ingestion_jobs_v4 RENAME TO ingestion_jobs;
+        CREATE INDEX IF NOT EXISTS idx_jobs_status ON ingestion_jobs(status, created_at DESC);
       `);
     }
   }

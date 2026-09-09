@@ -100,6 +100,15 @@ test('主导航 hover/focus 只预取，点击仍保持收集与模块导航原�
   assert.deepEqual(collected, ['collect']);
   assert.deepEqual(navigated, ['knowledge', 'notes', 'copilots']);
 });
+
+test('Friday 强调色与发送按钮同属陶土色，不再用蓝强调', () => {
+  assert.match(fridayCssSource, /--friday-accent:\s*#c96442/);
+  assert.match(fridayCssSource, /background:\s*var\(--friday-accent\)/);
+  assert.match(fridayCssSource, /\.send \{[\s\S]*?background:\s*var\(--friday-accent\)/);
+  assert.doesNotMatch(fridayCssSource, /--friday-accent:\s*#2563eb/);
+  assert.doesNotMatch(fridayCssSource, /--friday-accent:\s*#60a5fa/);
+  assert.doesNotMatch(fridayCssSource, /rgba\(37,\s*99,\s*235/);
+});
 test('ima 式首页只保留四个主入口、一个提问入口和紧凑最近列表', () => {
   const html = renderWorkspace();
   assert.match(html, /aria-label="主功能"/);
@@ -436,7 +445,7 @@ test('点击知识库进入浏览主列，窄屏也不得把文档库藏起来',
   assert.match(mainSource, /library-browse-stage/);
   assert.match(mainSource, /library-doc-grid/);
   assert.match(mainSource, /showBrowseGuide \? null : <header className="workspace-head"/);
-  assert.match(mainSource, /className="copilot-chip"/);
+  assert.match(mainSource, /配置 Copilot/);
   assert.match(mainSource, /className="composer-area"/);
   assert.match(mainSource, /composer-area" hidden=\{showBrowseGuide\}/);
   assert.match(mainSource, /is-chat-canvas/);

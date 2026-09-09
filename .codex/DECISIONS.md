@@ -115,3 +115,15 @@
 - Reason: User-locked product decisions for deep optimization; precipitation in the AI era is the exception, not the full recipe.
 - Consequence: Old notes stay. Private/localhost URLs are blocked. Extra QA sections such as 关联资料 must survive write-back.
 - Revisit only if: user changes the shell, note-type, or browser decisions.
+
+## 2026-09-04 — Friday 强调色与主按钮同一套陶土色
+- Decision: `--friday-accent` is `#c96442` (dark `#e08b6c`), shared by send, collect, empty CTAs, nav active, and focus rings. Chat 「更多」 keeps 解读/写作/录音/知识观察; Skill 工作台 and 证据工作台 leave that menu. Slash keeps ask-related actions only.
+- Reason: Blue Friday tokens and terracotta actions fought on the same screen; extra more-menu items made the header feel like a toolbox.
+- Consequence: Citation/primary tokens alias to Friday accent. Installer is not rebuilt in this slice. Copilot stays 4th rail item until a later feel pass.
+- Revisit only if: product wants a cool brand color again, or Copilot is demoted from primary nav.
+
+## 2026-09-08 — 笔记是一页，AI 只有问和改
+- Decision: Notes, writing, reader and Composer share one architecture: the work object is a page/document/draft; AI has two verbs (`ask`, `rewrite`); applying a result has three modes (replace selection, insert after, write a problem-note field). The shell stays rail + Composer + tabs + overlay Context. Calendar, plaza, whiteboard, PPT and image-gen stay out.
+- Reason: First-principles workbench (collect → read → ask with citations → write the exception). Notion/AFFiNE/SiYuan/kotaemon/Continue are learned as page + selection + write-back, not as extra products. Stacking slash, drop, index and assistant without this plan produced half-finished surfaces.
+- Consequence: `page-architecture.js` is the decision core. Notes UI must call `resolvePageSurface` / `resolvePageAiPlan` instead of inventing a fourth apply path. A full block editor is still out of scope until this contract is stable.
+- Revisit only if: a real block engine is adopted without adding navigation, or user changes the shell.

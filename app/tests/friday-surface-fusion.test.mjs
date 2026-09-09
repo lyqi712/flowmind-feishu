@@ -52,3 +52,13 @@ test('首页输入和最近列表不再写死黑字白底', () => {
   assert.doesNotMatch(clean, /color: rgba\(0,0,0,\.86\)/);
   assert.doesNotMatch(clean, /background: #fff;/);
 });
+
+test('笔记纸面共用一套字号列宽，工具条不再随画布悬停弹出', () => {
+  assert.match(skin, /--paper-prose-size: 16px/);
+  assert.match(skin, /--paper-prose-leading: 1.8/);
+  assert.match(skin, /--paper-column: 720px/);
+  assert.match(skin, /width: min\(var\(--paper-column\), 100%\)/);
+  assert.match(skin, /font-size: var\(--paper-prose-size\)/);
+  assert.doesNotMatch(skin, /\.note-editor-canvas:hover > \.editor-tags:placeholder-shown:not\(:focus\)/);
+  assert.match(skin, /\.editor-title:focus \+ \.editor-tags:placeholder-shown/);
+});

@@ -299,6 +299,13 @@ export class ContentRepository {
     const row = this.db.prepare('SELECT id FROM content_items WHERE source_connection_id = ? AND external_id = ?').get(sourceConnectionId, externalId);
     return row ? this.getContentItem(row.id, options) : null;
   }
+  getContentItemByFileHash(sourceConnectionId, fileHash, options = {}) {
+    if (!fileHash) return null;
+    const row = this.db.prepare(`SELECT id FROM content_items
+      WHERE source_connection_id = ? AND deleted_at IS NULL AND json_extract(metadata_json, '$.fileHash') = ?
+      ORDER BY created_at ASC, id ASC LIMIT 1`).get(String(sourceConnectionId), String(fileHash));
+    return row ? this.getContentItem(row.id, options) : null;
+  }
   listContentItems(filters = {}) {
     if (filters.search) return this.searchContent(filters.search, filters);
     const where = [], params = [];
@@ -549,7 +556,7 @@ export class ContentRepository {
     const status = patch.status || existing.status, now = this.now();
     const startedAt = patch.startedAt !== undefined ? iso(patch.startedAt) : existing.started_at || (status === 'running' ? now : null);
     const completedAt = patch.completedAt !== undefined ? iso(patch.completedAt)
-      : existing.completed_at || (['completed', 'failed', 'cancelled'].includes(status) ? now : null);
+      : existing.completed_at || (['completed', 'failed', 'cancelled', 'partial'].includes(status) ? now : null);
     this.db.prepare(`UPDATE ingestion_jobs SET source_connection_id=?, space_id=?, job_type=?, status=?, dedupe_key=?,
       cursor=?, stats_json=?, error_json=?, metadata_json=?, started_at=?, completed_at=?, updated_at=? WHERE id=?`).run(
       patch.sourceConnectionId ?? existing.source_connection_id, patch.spaceId ?? existing.space_id,

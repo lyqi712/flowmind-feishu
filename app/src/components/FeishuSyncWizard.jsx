@@ -80,6 +80,7 @@ export default function FeishuSyncWizard({ onClose, onState, onToast, currentSyn
   const [showSecret, setShowSecret] = useState(false);
   const [spaces, setSpaces] = useState([]);
   const [discoveredSources, setDiscoveredSources] = useState([]);
+  const [hasDiscovered, setHasDiscovered] = useState(false);
   const [busy, setBusy] = useState('loading');
   const [error, setError] = useState(null);
   const [syncResult, setSyncResult] = useState(null);
@@ -112,7 +113,7 @@ export default function FeishuSyncWizard({ onClose, onState, onToast, currentSyn
     catch (requestError) { setError(requestError); setBusy(''); }
   }
   function goTo(next) {
-    if (next > 0 && !settings.credentialsConfigured) return;
+    if (busy || (next > 0 && !settings.credentialsConfigured)) return;
     setError(null); setStep(Math.max(0, Math.min(3, next)));
   }
   function payload(includeCredentials = false) {
@@ -149,7 +150,10 @@ export default function FeishuSyncWizard({ onClose, onState, onToast, currentSyn
       setSpaces(foundSpaces); setDiscoveredSources(Array.isArray(data.sources) ? data.sources : []);
       setForm(current => ({ ...current, spaceIds: current.spaceIds.length ? current.spaceIds : foundSpaces.map(item => String(item.id)) }));
       if (data.settings) setSettings(normalizeSettings(data.settings));
-      notify(`授权成功，发现 ${foundSpaces.length} 个知识空间和 ${(data.sources || []).length} 个链接来源`);
+      setHasDiscovered(true);
+      notify(foundSpaces.length || data.sources?.length
+        ? `授权成功，发现 ${foundSpaces.length} 个知识空间和 ${(data.sources || []).length} 个链接来源`
+        : '连接成功，但未发现可访问来源；请检查文档或知识空间的应用授权', foundSpaces.length || data.sources?.length ? 'success' : 'warning');
     } catch (requestError) { setError(requestError); }
     finally { setBusy(''); }
   }
@@ -164,7 +168,7 @@ export default function FeishuSyncWizard({ onClose, onState, onToast, currentSyn
       setSettings(normalizeSettings(data)); notify('飞书来源和同步范围已保存');
       if (moveNext) setStep(2);
       return data;
-    } catch (requestError) { setError(requestError); throw requestError; }
+    } catch (requestError) { setError(requestError); }
     finally { setBusy(''); }
   }
 
@@ -207,16 +211,16 @@ export default function FeishuSyncWizard({ onClose, onState, onToast, currentSyn
       </header>
       <div className="fw-layout">
         <aside className="fw-steps">
-          {STEPS.map((item, index) => <button key={item.id} className={`${step === index ? 'active' : ''} ${index < step || (index === 0 && settings.credentialsConfigured) ? 'done' : ''}`} disabled={index > 0 && !settings.credentialsConfigured} onClick={() => goTo(index)}>
+          {STEPS.map((item, index) => <button key={item.id} className={`${step === index ? 'active' : ''} ${index < step || (index === 0 && settings.credentialsConfigured) ? 'done' : ''}`} disabled={Boolean(busy) || (index > 0 && !settings.credentialsConfigured)} onClick={() => goTo(index)}>
             <span>{index < step || (index === 0 && settings.credentialsConfigured) ? <Check size={14}/> : index + 1}</span><div><b>{item.label}</b><small>{item.hint}</small></div>{step === index && <ChevronRight size={14}/>}</button>)}
           <div className="fw-security"><ShieldCheck size={18}/><div><b>凭据安全</b><p>Secret 加密保存于服务端，前端保存后立即清空且永不回显。</p></div></div>
-          <button className="fw-mock" disabled={busy === 'syncing'} onClick={() => runSync('mock')}><Database size={16}/><span><b>演示模式</b><small>无需飞书凭据</small></span></button>
+          <button className="fw-mock" disabled={Boolean(busy)} onClick={() => runSync('mock')}><Database size={16}/><span><b>演示模式</b><small>无需飞书凭据</small></span></button>
         </aside>
         <main className="fw-main">
           <div className="fw-step-heading"><span>步骤 {step + 1} / {STEPS.length}</span><h3>{activeStep.label}</h3><p>{activeStep.hint}</p></div>
           {busy === 'loading' ? <WizardLoading/> : <>
             {step === 0 && <CredentialsStep form={form} setForm={setForm} settings={settings} busy={busy} error={error} showSecret={showSecret} setShowSecret={setShowSecret} save={saveCredentials} login={loginFeishuUser}/>}
-            {step === 1 && <SourcesStep form={form} setForm={setForm} typedLinks={typedLinks} counts={counts} spaces={spaces} discoveredSources={discoveredSources} busy={busy} error={error} discover={discover} next={() => saveSources(true)}/>}
+            {step === 1 && <SourcesStep form={form} setForm={setForm} typedLinks={typedLinks} counts={counts} spaces={spaces} discoveredSources={discoveredSources} hasDiscovered={hasDiscovered} busy={busy} error={error} discover={discover} next={() => saveSources(true)}/>}
             {step === 2 && <ScopeStep form={form} setForm={setForm} settings={settings} links={typedLinks} spaces={spaces.filter(space => form.spaceIds.includes(String(space.id)))} error={error} busy={busy} back={() => goTo(1)} save={() => saveSources(false)} sync={() => runSync('feishu')}/>}
             {step === 3 && <ResultStep busy={busy} progress={progress} result={syncResult} error={error} currentSync={currentSync} retry={() => runSync(lastSource)} back={() => goTo(lastSource === 'mock' ? 0 : 2)} close={onClose}/>}
           </>}
@@ -231,7 +235,7 @@ function WizardLoading() {
 }
 function ErrorBanner({ error }) {
   if (!error) return null;
-  return <div className="fw-error"><AlertCircle size={16}/><div><b>{errorText(error)}</b><small>{error.stage ? `阶段：${error.stage}` : '请检查配置后重试'}{error.code ? ` · ${error.code}` : ''}</small></div></div>;
+  return <div className="fw-error" role="alert" aria-live="assertive"><AlertCircle size={16}/><div><b>{errorText(error)}</b><small>{error.stage ? `阶段：${error.stage}` : '请检查配置后重试'}{error.code ? ` · ${error.code}` : ''}</small></div></div>;
 }
 function CredentialsStep({ form, setForm, settings, busy, error, showSecret, setShowSecret, save, login }) {
   return <div className="fw-pane"><div className="fw-info-card"><KeyRound size={20}/><div><b>{settings.credentialsConfigured ? '应用凭据已配置' : '按这三步开通机器人，不用自己摸索'}</b><p>{settings.credentialsConfigured ? `当前 App ID：${settings.appIdMasked}` : '先创建自建应用、开通只读权限并发布，再把文档授权给这个应用。'}</p></div>{settings.credentialsConfigured && <CheckCircle2 size={19}/>}</div>
@@ -253,7 +257,7 @@ function CredentialsStep({ form, setForm, settings, busy, error, showSecret, set
     </div><ErrorBanner error={error}/><div className="fw-actions"><span/><button className="fw-primary" disabled={busy === 'saving'} onClick={save}>{busy === 'saving' ? <LoaderCircle className="spin" size={16}/> : <Save size={16}/>}保存凭据并继续<ArrowRight size={15}/></button></div>
   </div>;
 }
-function SourcesStep({ form, setForm, typedLinks, counts, spaces, discoveredSources, busy, error, discover, next }) {
+function SourcesStep({ form, setForm, typedLinks, counts, spaces, discoveredSources, hasDiscovered, busy, error, discover, next }) {
   function toggleSpace(id) {
     setForm(current => ({ ...current, spaceIds: current.spaceIds.includes(id) ? current.spaceIds.filter(item => item !== id) : [...current.spaceIds, id] }));
   }
@@ -263,6 +267,7 @@ function SourcesStep({ form, setForm, typedLinks, counts, spaces, discoveredSour
     <button className="fw-discover" disabled={busy === 'discovering'} onClick={discover}>{busy === 'discovering' ? <LoaderCircle className="spin" size={18}/> : <Globe2 size={18}/>}<span><b>{busy === 'discovering' ? '正在验证授权并发现来源' : '测试连接并发现可访问空间'}</b><small>调用飞书开放平台，不会修改任何远端内容</small></span><ChevronRight size={16}/></button>
     {discoveredSources.length > 0 && <section className="fw-discovered"><div className="fw-section-title"><div><CheckCircle2 size={17}/><span><b>已识别链接</b><small>飞书已确认以下资源可访问</small></span></div></div><div>{discoveredSources.map((source, index) => <div key={`${source.url}-${index}`}><TypePill type={source.type}/><span><b>{source.title || `${TYPE_META[source.type]?.label || source.type} · …${source.tokenSuffix}`}</b><small>{source.url}</small></span><Check size={15}/></div>)}</div></section>}
     {spaces.length > 0 && <section className="fw-spaces"><div className="fw-section-title"><div><BookOpen size={17}/><span><b>可访问知识空间</b><small>已自动选中发现的空间，可按需取消</small></span></div><button onClick={() => setForm(current => ({ ...current, spaceIds: current.spaceIds.length === spaces.length ? [] : spaces.map(space => String(space.id)) }))}>{form.spaceIds.length === spaces.length ? '取消全选' : '全选'}</button></div><div className="fw-space-grid">{spaces.map(space => { const id = String(space.id); const checked = form.spaceIds.includes(id); return <button key={id} className={checked ? 'selected' : ''} onClick={() => toggleSpace(id)}><span className="fw-check">{checked ? <Check size={13}/> : <Circle size={13}/>}</span><span><b>{space.name || `知识空间 ${id}`}</b><small>{space.description || space.visibility || id}</small></span></button>; })}</div></section>}
+    {hasDiscovered && !spaces.length && !discoveredSources.length && !busy && !error && <div className="fw-info-card" role="status"><BookOpen size={20}/><div><b>连接成功，但未发现可访问来源</b><p>请在飞书文档或知识空间的「… → 添加文档应用 / 添加知识库应用」中授权当前应用，再重新测试连接。也可以粘贴已授权的飞书链接。</p></div></div>}
     <ErrorBanner error={error}/><div className="fw-actions"><span>{!spaces.length && <small>先执行发现，可自动列出知识空间</small>}</span><button className="fw-primary" disabled={busy === 'saving' || (!typedLinks.length && !form.spaceIds.length)} onClick={next}>{busy === 'saving' ? <LoaderCircle className="spin" size={16}/> : <ArrowRight size={16}/>}确认来源</button></div>
   </div>;
 }

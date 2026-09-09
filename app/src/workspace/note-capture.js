@@ -54,6 +54,42 @@ export function noteListPreview(content, limit = 42) {
 
 const EMPTY_NOTE_TITLES = new Set(['', '无标题笔记', '未命名笔记', '新笔记', '问题记录']);
 
+export function isBlankNoteTitle(title = '') {
+  return EMPTY_NOTE_TITLES.has(String(title || '').trim());
+}
+
+export function suggestNoteTitleFromContent(content = '', { fallback = '' } = {}) {
+  const text = String(content || '').replace(/\r\n?/g, '\n').trim();
+  if (!text) return fallback;
+  const heading = text.match(/^#{1,6}\s+(.+?)\s*$/m);
+  const line = heading
+    ? heading[1]
+    : text.split('\n').map(item => item.trim()).find(item => item && !/^(?:[-*+]\s|\d+\.\s|>|```)/.test(item));
+  const preview = plainPreview(line || text, 32).replace(/[.。…]+$/u, '');
+  return preview || fallback;
+}
+
+export function nextNoteTitle({ title = '', content = '', titleTouched = false } = {}) {
+  if (titleTouched) return title;
+  return suggestNoteTitleFromContent(content, { fallback: isBlankNoteTitle(title) ? '无标题笔记' : title });
+}
+
+export function blankNoteDraft() {
+  return { title: '无标题笔记', content: '', tags: [] };
+}
+
+export const NOTE_ASSISTANT_STARTERS = Object.freeze([
+  { id: 'draft', label: '帮我起稿', prompt: '根据当前标题和已有内容，写一段可直接放进笔记正文的开头。没有正文时按标题起草，不要编造来源。' },
+  { id: 'title', label: '起个标题', prompt: '根据这篇笔记给一个不超过 20 字的标题，只输出标题本身。' },
+  { id: 'outline', label: '列要点', prompt: '把这篇笔记整理成不超过 5 条要点，用 Markdown 列表，不要补充原文没有的事实。' },
+  { id: 'polish', label: '润色这篇', prompt: '润色这篇笔记的表达，保留事实、引用和结构。' }
+]);
+
+export const PROBLEM_NOTE_STARTERS = Object.freeze([
+  { id: 'pitfall', label: '提炼容易忘的点', prompt: '根据当前问题记录，提炼下次真正容易漏掉的一步，不要写成教程。' },
+  { id: 'resolution', label: '整理这次怎么做的', prompt: '用不超过 8 行写清这次怎么解决的。' }
+]);
+
 export function noteHasSubstance(note = {}) {
   if (isProblemNote(note) && (parseQaNote(note.content).question || parseQaNote(note.content).pitfall || parseQaNote(note.content).resolution)) return true;
   const title = String(note.title || '').trim();
