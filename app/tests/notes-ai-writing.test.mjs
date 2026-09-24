@@ -1,15 +1,36 @@
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 import test, { after, before } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer, transformWithEsbuild } from 'vite';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const appRoot = resolve(here, '..');
+const componentPath = resolve(appRoot, 'src/components/NotesWorkspace.jsx');
+const source = readFileSync(componentPath, 'utf8');
+const electronExecutable = (() => {
+  try {
+    const require = createRequire(import.meta.url);
+    const electronRoot = dirname(require.resolve('electron/package.json'));
+    const pathFile = join(electronRoot, 'path.txt');
+    const relativeExecutable = existsSync(pathFile) ? readFileSync(pathFile, 'utf8').trim() : '';
+    const candidate = process.env.ELECTRON_OVERRIDE_DIST_PATH
+      ? join(process.env.ELECTRON_OVERRIDE_DIST_PATH, relativeExecutable || (process.platform === 'win32' ? 'electron.exe' : 'electron'))
+      : relativeExecutable
+        ? join(electronRoot, 'dist', relativeExecutable)
+        : '';
+    return candidate && existsSync(candidate) ? candidate : '';
+  } catch {
+    return '';
+  }
+})();
 
 test('queued 写回拒绝不发布成功、不改 dirty，显式写入仍可重试', () => {
   const updateCode = source.slice(source.indexOf('  function update(patch,'), source.indexOf('  function openLinkedNote('));
@@ -60,7 +81,10 @@ test('queued 写回拒绝不发布成功、不改 dirty，显式写入仍可重�
   }
 });
 
-test('真实 React 提交及 StrictMode：显式写入合并排队正文，自动拒绝后仍可重试', { timeout: 60000 }, async () => {
+test('真实 React 提交及 StrictMode：显式写入合并排队正文，自动拒绝后仍可重试', {
+  timeout: 60000,
+  skip: electronExecutable ? false : 'Electron runtime 未安装，跳过真实窗口测试'
+}, async () => {
   const require = createRequire(import.meta.url);
   const updateCode = source.slice(source.indexOf('  function update(patch,'), source.indexOf('  function openLinkedNote('));
   const writeCode = source.slice(source.indexOf('  function writeAssistantIntoNote('), source.indexOf('  function updateQaField('));
@@ -172,7 +196,7 @@ test('真实 React 提交及 StrictMode：显式写入合并排队正文，自�
   try {
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
-    const { stdout } = await promisify(execFile)(require('electron'), [entry, '--no-sandbox'], { env, timeout: 45000, windowsHide: true });
+    const { stdout } = await promisify(execFile)(electronExecutable, [entry, '--no-sandbox'], { env, timeout: 45000, windowsHide: true });
     assert.match(stdout, /NOTES_REACT_CASES=112/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -185,10 +209,6 @@ test('自动助手和帮写调用方只按 accepted 结果发布已写入状态'
   assert.match(source, /requestController: assistantRequestRef\.current/);
 });
 
-const here = dirname(fileURLToPath(import.meta.url));
-const appRoot = resolve(here, '..');
-const componentPath = resolve(appRoot, 'src/components/NotesWorkspace.jsx');
-const source = readFileSync(componentPath, 'utf8');
 let vite;
 let module;
 

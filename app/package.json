@@ -15,6 +15,9 @@
     "desktop:portable": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/desktop/build-portable.ps1",
     "mcp:start": "node mcp/server.mjs",
     "mcp:smoke": "node mcp/smoke.mjs",
+    "security:audit": "npm audit --audit-level=high --registry=https://registry.npmjs.org",
+    "release:verify-tree": "node ../scripts/release/verify-tree.mjs",
+    "release:verify-artifacts": "node ../scripts/release/verify-artifacts.mjs",
     "desktop:zip": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/desktop/build-desktop.ps1 -Target zip"
   },
   "dependencies": {
@@ -41,6 +44,7 @@
     "concurrently": "10.0.4",
     "electron": "43.2.0",
     "electron-builder": "26.15.3",
+    "esbuild": "0.28.1",
     "vite": "8.2.0"
   },
   "description": "飞书知识库 AI 助手：同步、检索问答、引用溯源与可组合 Skill 工作流",

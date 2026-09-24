@@ -40,6 +40,7 @@ import { oauthCallbackPage, safeReturnTo } from './feishu-oauth.mjs';
 import { shouldAttachRelationsAnalysis, stripTemplatedAnswerSections } from '../shared/answer-text.mjs';
 import { AGENT_QUESTION_MAX_CHARS, agentRunNeedsKnowledgeScan, emptyRetrievalDecision, isOrphanFollowUp, isTransformableAssistantAnswer, resolveReaderAskLock, shouldIncludeKnowledgeBase, shouldRetrieveKnowledge } from './retrieval-policy.mjs';
 import { bindAnswerCitations, claimsWithInvalidCitations, downgradeInvalidCitations, extractCitationMarkers } from './citation-integrity.mjs';
+import { createLocalSessionAuth, localSessionError } from './local-session-auth.mjs';
 
 export const DEFAULT_STATE_FILE = fileURLToPath(new URL('../../runtime-data/state.json', import.meta.url));
 export const DEFAULT_STATIC_DIR = fileURLToPath(new URL('../dist', import.meta.url));
@@ -1352,12 +1353,14 @@ export function createApp({
   contentOptions = {},
   taskArtifactOptions = {},
   workspaceSyncOptions = {},
-  staticDir = DEFAULT_STATIC_DIR
+  staticDir = DEFAULT_STATIC_DIR,
+  authToken = ''
 } = {}) {
   const databasePath = contentOptions.databasePath || String(stateFile) + '.content.sqlite';
   mkdirSync(dirname(stateFile), { recursive: true });
   if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
   const app = express();
+  const localAuth = createLocalSessionAuth({ token: authToken });
   const store = new JsonStateStore(stateFile);
   const feishu = connector || new FeishuSettingsService({ env, fetchImpl, connectorOptions, secretFile: join(dirname(stateFile), 'feishu-secret.enc'), masterKeyFile: join(dirname(stateFile), '.feishu-master-key'), ...feishuOptions });
   const models = modelService || new ModelService({ store, env, fetchImpl, secretFile: join(dirname(stateFile), 'model-secret.enc'), masterKeyFile: join(dirname(stateFile), '.model-master-key'), ...modelOptions });
@@ -1938,6 +1941,10 @@ export function createApp({
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(204);
+    const requiresSession = localAuth.enabled && req.path.startsWith('/api/') && req.path !== '/api/health' && !(req.method === 'OPTIONS' && origin);
+    if (!requiresSession) return next();
+    const authentication = localAuth.authenticate(req);
+    if (!authentication.ok) return res.status(401).json(localSessionError(authentication));
     next();
   });
   app.use(async (req, res, next) => {
@@ -4138,6 +4145,7 @@ export function createApp({
   });
 
   app.locals.store = store;
+  app.locals.localAuth = localAuth;
   app.locals.ready = Promise.all([store.ready, models.ready, feishu.ready || Promise.resolve(), contentReady, workspaceSync.ready]);
   app.locals.feishuConnector = feishu;
   app.locals.feishuService = feishu;

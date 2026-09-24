@@ -73,7 +73,8 @@ export async function startDesktopHost({
   connectorOptions,
   feishuOptions,
   modelOptions,
-  contentOptions
+  contentOptions,
+  authToken = ''
 } = {}) {
   if (!appRoot) throw new Error('appRoot is required');
   if (!stateFile) throw new Error('stateFile is required');
@@ -82,7 +83,7 @@ export async function startDesktopHost({
   const indexFile = path.join(distDir, 'index.html');
   assertReadableFile(indexFile, 'production renderer');
 
-  const webApp = createApp({ stateFile, env, fetchImpl, connector, connectorOptions, feishuOptions, modelOptions, contentOptions, staticDir: null });
+  const webApp = createApp({ stateFile, env, fetchImpl, connector, connectorOptions, feishuOptions, modelOptions, contentOptions, authToken, staticDir: null });
   await webApp.locals.ready;
 
   webApp.get('/desktop-healthz', (req, res) => {

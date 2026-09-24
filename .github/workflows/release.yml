@@ -1,0 +1,58 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm run check:server
+      - run: npm run check
+      - run: npm run mcp:smoke
+      - run: npm run security:audit
+      - run: npm run release:verify-tree
+      - name: Remove stale desktop output
+        working-directory: .
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath 'app/desktop/out') {
+            Remove-Item -LiteralPath 'app/desktop/out' -Recurse -Force
+          }
+      - run: npm run desktop:pack
+      - run: npm run desktop:portable
+      - run: npm run release:verify-artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flowmind-${{ github.ref_name }}-windows-x64
+          path: |
+            app/desktop/out/FlowMind-Setup-*-x64.exe
+            app/desktop/out/FlowMind-Feishu-AI-Workspace-*-x64-portable.zip
+            app/desktop/out/*.blockmap
+          if-no-files-found: error
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            app/desktop/out/FlowMind-Setup-*-x64.exe
+            app/desktop/out/FlowMind-Feishu-AI-Workspace-*-x64-portable.zip
+            app/desktop/out/*.blockmap

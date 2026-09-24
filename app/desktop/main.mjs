@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import { isMcpStdioArgv, startMcpStdio } from './mcp-stdio.mjs';
 import { startDesktopHost } from './runtime.mjs';
 import { resolveDesktopWorkspace } from './seed-userdata.mjs';
 import { createWindowStateStore, ensureBoundsOnScreen } from './window-state.mjs';
+import { attachLocalApiAuthorization } from './local-api-session.mjs';
 
 const desktopDir = path.dirname(fileURLToPath(import.meta.url));
 const developmentAppRoot = path.resolve(desktopDir, '..');
@@ -101,10 +102,22 @@ async function chooseMarkdownMirrorRoot(browserWindow) {
   return { cancelled: false, rootId: root.id, displayName: root.displayName };
 }
 
-function configureSessionSecurity(origin) {
+function configureSessionSecurity(origin, token) {
   const appSession = session.defaultSession;
   appSession.setPermissionCheckHandler(() => false);
   appSession.setPermissionRequestHandler((webContents, permission, callback) => callback(false));
+  appSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const requestHeaders = attachLocalApiAuthorization({
+      url: details.url,
+      origin,
+      resourceType: details.resourceType,
+      webContentsId: details.webContentsId,
+      mainWebContentsId: mainWindow?.webContents.id,
+      requestHeaders: details.requestHeaders,
+      token
+    });
+    callback({ requestHeaders });
+  });
   appSession.webRequest.onHeadersReceived((details, callback) => {
     try {
       if (new URL(details.url).origin !== origin) return callback({ responseHeaders: details.responseHeaders });
@@ -250,6 +263,7 @@ if (!hasSingleInstanceLock) {
   }
 
   const root = appRootPath();
+  const localSessionToken = randomBytes(32).toString('hex');
   desktopHost = await startDesktopHost({
     appRoot: root,
     distDir: path.join(root, 'dist'),
@@ -257,10 +271,11 @@ if (!hasSingleInstanceLock) {
     feishuOptions: { secretFile: workspace.feishuSecretFile, masterKeyFile: workspace.feishuMasterKeyFile },
     contentOptions: { databasePath: workspace.databasePath },
     modelOptions: { secretFile: workspace.modelSecretFile, masterKeyFile: workspace.modelMasterKeyFile },
+    authToken: localSessionToken,
     logger
   });
   localOrigin = desktopHost.origin;
-  configureSessionSecurity(localOrigin);
+  configureSessionSecurity(localOrigin, localSessionToken);
 
   ipcMain.handle('desktop:get-app-info', () => ({
     name: app.getName(),

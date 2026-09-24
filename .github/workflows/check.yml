@@ -24,5 +24,8 @@ jobs:
       - run: npm ci
       - run: npm run check:server
       - run: npm run check
+      - run: npm run mcp:smoke
+      - run: npm run security:audit
+      - run: npm run release:verify-tree
       - name: Isolated desktop host smoke
         run: node ../scripts/desktop/smoke-host.mjs

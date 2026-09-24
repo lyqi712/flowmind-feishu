@@ -70,11 +70,19 @@ export function parseFeishuResource(value) {
 export const FEISHU_EXPORT_FOLDER_NAME = 'FlowMind 导出';
 
 function isRetryableStatus(status) { return status === 408 || status === 429 || status >= 500; }
+function retryAfterDelay(value, fallback, maxDelayMs) {
+  const raw = String(value || '').trim();
+  if (!raw) return Math.min(maxDelayMs, fallback);
+  const seconds = Number(raw);
+  const parsed = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(raw) - Date.now();
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.min(maxDelayMs, parsed) : Math.min(maxDelayMs, fallback);
+}
+function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function text(value) { return value === null || value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value); }
 function now() { return new Date().toISOString(); }
 
 export class FeishuConnector {
-  constructor({ env = process.env, fetchImpl = globalThis.fetch, apiBase = FEISHU_API_BASE, timeoutMs = 30000, minDocRequestIntervalMs = 220, getUserAccessToken } = {}) {
+  constructor({ env = process.env, fetchImpl = globalThis.fetch, apiBase = FEISHU_API_BASE, timeoutMs = 30000, minDocRequestIntervalMs = 220, getUserAccessToken, maxRetries = 2, retryBaseMs = 250, maxRetryDelayMs = 5000 } = {}) {
     if (typeof fetchImpl !== 'function') throw new TypeError('fetch implementation is required');
     this.env = env;
     this.fetchImpl = fetchImpl;
@@ -83,6 +91,9 @@ export class FeishuConnector {
     this.minDocRequestIntervalMs = minDocRequestIntervalMs;
     this.lastDocRequestAt = 0;
     this.getUserAccessToken = typeof getUserAccessToken === 'function' ? getUserAccessToken : async () => '';
+    this.maxRetries = Math.max(0, Math.min(4, Math.trunc(Number(maxRetries) || 0)));
+    this.retryBaseMs = Math.max(0, Math.min(5000, Number(retryBaseMs) || 0));
+    this.maxRetryDelayMs = Math.max(0, Math.min(30000, Number(maxRetryDelayMs) || 0));
     this.secretValues = [env.FEISHU_APP_ID, env.FEISHU_APP_SECRET].filter(Boolean);
   }
 
@@ -109,33 +120,44 @@ export class FeishuConnector {
   }
 
   async request(path, { method = 'GET', token, body, stage } = {}) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      const response = await this.fetchImpl(`${this.apiBase}${path}`, {
-        method,
-        headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal
-      });
-      let payload;
-      try { payload = await response.json(); }
-      catch {
-        throw new FeishuConnectorError(`飞书接口在 ${stage} 阶段返回了非 JSON 响应`, { code: 'FEISHU_INVALID_RESPONSE', stage, status: 502, retriable: isRetryableStatus(response.status) });
-      }
-      if (!response.ok || (payload.code !== undefined && payload.code !== 0)) {
-        const upstreamCode = payload.code === undefined ? response.status : payload.code;
-        const upstreamMessage = typeof payload.msg === 'string' ? this.redact(payload.msg) : '上游请求失败';
-        throw new FeishuConnectorError(`飞书接口错误（${stage}，code=${upstreamCode}）: ${upstreamMessage}`, {
-          code: 'FEISHU_UPSTREAM_ERROR', stage, status: response.status >= 400 && response.status < 500 ? response.status : 502, retriable: isRetryableStatus(response.status)
+    const safeToRetry = method.toUpperCase() === 'GET';
+    for (let attempt = 0; ; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      let response = null;
+      try {
+        response = await this.fetchImpl(`${this.apiBase}${path}`, {
+          method,
+          headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal
         });
-      }
-      return payload;
-    } catch (error) {
-      if (error instanceof FeishuConnectorError) throw error;
-      if (error?.name === 'AbortError') throw new FeishuConnectorError(`飞书接口请求超时（${stage}）`, { code: 'FEISHU_TIMEOUT', stage, status: 504, retriable: true });
-      throw new FeishuConnectorError(`飞书接口网络错误（${stage}）`, { code: 'FEISHU_NETWORK_ERROR', stage, status: 502, retriable: true });
-    } finally { clearTimeout(timeout); }
+        let payload;
+        try { payload = await response.json(); }
+        catch {
+          throw new FeishuConnectorError(`飞书接口在 ${stage} 阶段返回了非 JSON 响应`, { code: 'FEISHU_INVALID_RESPONSE', stage, status: 502, retriable: isRetryableStatus(response.status) });
+        }
+        if (!response.ok || (payload.code !== undefined && payload.code !== 0)) {
+          const upstreamCode = payload.code === undefined ? response.status : payload.code;
+          const upstreamMessage = typeof payload.msg === 'string' ? this.redact(payload.msg) : '上游请求失败';
+          throw new FeishuConnectorError(`飞书接口错误（${stage}，code=${upstreamCode}）: ${upstreamMessage}`, {
+            code: 'FEISHU_UPSTREAM_ERROR', stage, status: response.status >= 400 && response.status < 500 ? response.status : 502, retriable: isRetryableStatus(response.status)
+          });
+        }
+        return payload;
+      } catch (error) {
+        const retryable = safeToRetry && attempt < this.maxRetries && (response ? isRetryableStatus(response.status) : !(error instanceof FeishuConnectorError) || error.retriable);
+        if (retryable) {
+          const fallback = this.retryBaseMs * (2 ** attempt);
+          const delay = retryAfterDelay(response?.headers?.get?.('retry-after'), fallback, this.maxRetryDelayMs);
+          await wait(delay);
+          continue;
+        }
+        if (error instanceof FeishuConnectorError) throw error;
+        if (error?.name === 'AbortError') throw new FeishuConnectorError(`飞书接口请求超时（${stage}）`, { code: 'FEISHU_TIMEOUT', stage, status: 504, retriable: true });
+        throw new FeishuConnectorError(`飞书接口网络错误（${stage}）`, { code: 'FEISHU_NETWORK_ERROR', stage, status: 502, retriable: true });
+      } finally { clearTimeout(timeout); }
+    }
   }
 
   async requestBinary(path, { token, stage, timeoutMs } = {}) {

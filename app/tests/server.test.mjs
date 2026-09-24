@@ -48,6 +48,35 @@ async function readNdjson(response) {
   return text.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
 }
 
+test('本地会话 token 保护 API，公开健康检查仍可用', async () => {
+  const token = 'test-local-session-token';
+  const harness = await createHarness({ authToken: token });
+  try {
+    const health = await fetch(`${harness.baseUrl}/api/health`);
+    assert.equal(health.status, 200);
+
+    const missing = await fetch(`${harness.baseUrl}/api/state`);
+    assert.equal(missing.status, 401);
+    assert.equal((await missing.json()).error.code, 'LOCAL_SESSION_REQUIRED');
+
+    const invalid = await fetch(`${harness.baseUrl}/api/state`, { headers: { Authorization: 'Bearer wrong-token' } });
+    assert.equal(invalid.status, 401);
+    assert.equal((await invalid.json()).error.code, 'LOCAL_SESSION_INVALID');
+
+    const authorized = await fetch(`${harness.baseUrl}/api/state`, { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal(authorized.status, 200);
+
+    const forgedOrigin = await fetch(`${harness.baseUrl}/api/state`, { headers: { Origin: harness.baseUrl } });
+    assert.equal(forgedOrigin.status, 401);
+    assert.equal((await forgedOrigin.json()).error.code, 'LOCAL_SESSION_REQUIRED');
+
+    const preflight = await fetch(`${harness.baseUrl}/api/state`, { method: 'OPTIONS', headers: { Origin: harness.baseUrl } });
+    assert.equal(preflight.status, 204);
+  } finally {
+    await harness.close();
+  }
+});
+
 test('API rejects non-local browser origins while allowing the local development origin', async () => {
   const harness = await createHarness();
   try {

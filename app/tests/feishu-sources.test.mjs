@@ -50,6 +50,45 @@ function connector() {
   });
 }
 
+test('Feishu GET retries bounded transient responses and honors Retry-After', async () => {
+  let calls = 0;
+  const connector = new FeishuConnector({
+    env: { FEISHU_APP_ID: 'fixture-app', FEISHU_APP_SECRET: 'fixture-secret' },
+    retryBaseMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return Response.json({ code: 0, msg: 'busy' }, { status: 429, headers: { 'Retry-After': '0' } });
+      return Response.json({ code: 0, data: { ok: true } });
+    }
+  });
+
+  const result = await connector.request('/retry-fixture', { stage: 'retry-fixture' });
+  assert.equal(result.data.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('Feishu GET stops after its retry limit and write requests are never retried', async () => {
+  let getCalls = 0;
+  let postCalls = 0;
+  const connector = new FeishuConnector({
+    env: { FEISHU_APP_ID: 'fixture-app', FEISHU_APP_SECRET: 'fixture-secret' },
+    retryBaseMs: 0,
+    fetchImpl: async (_url, options = {}) => {
+      if (options.method === 'POST') {
+        postCalls += 1;
+        throw new Error('connection lost');
+      }
+      getCalls += 1;
+      return Response.json({ code: 0, msg: 'busy' }, { status: 503 });
+    }
+  });
+
+  await assert.rejects(connector.request('/get-fixture', { stage: 'get-fixture' }), error => error.code === 'FEISHU_UPSTREAM_ERROR' && error.retriable);
+  await assert.rejects(connector.request('/post-fixture', { method: 'POST', body: { title: 'one' }, stage: 'post-fixture' }), error => error.code === 'FEISHU_NETWORK_ERROR');
+  assert.equal(getCalls, 3);
+  assert.equal(postCalls, 1);
+});
+
 test('飞书链接解析覆盖 Docx/Wiki/Sheet/Bitable/Folder，拒绝非 HTTP 块值', () => {
   assert.equal(parseFeishuResource('token-only'), null);
   assert.equal(parseFeishuResource('https://x.feishu.cn/docx/doc1').type, 'docx');
