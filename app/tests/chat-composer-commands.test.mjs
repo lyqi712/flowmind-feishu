@@ -11,6 +11,7 @@ test('/ \u4e0e @ \u89e6\u53d1\u5668\u8fdb\u5165\u547d\u4ee4\u83dc\u5355\u5e76\u6
   assert.ok(source.includes('mode={composerTrigger?.mode'));
   assert.ok(source.includes('inputRef={composerInputRef}'));
   assert.ok(source.includes('event.defaultPrevented'));
+  assert.match(source, /function submitComposer\(\) \{\s*if \(composerMenuOpen\) return;/);
   assert.match(css, /\.composer:has\(\.composer-command-menu\)\{[^}]*overflow:visible[^}]*z-index:90/);
 });
 

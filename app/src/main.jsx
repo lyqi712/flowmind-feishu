@@ -3249,6 +3249,7 @@ function ChatWorkspace({ kb, selectedDocs, setSelectedDocs, messages, setMessage
     if (item.type === 'action') { updateComposerValue(nextValue); if (item.action === 'add-file') fileInputRef.current?.click(); else if (item.action === 'new-chat') startFreshConversation(); else if (item.action === 'problem-note') onCreateProblemNote?.(); else onOpenModule?.(item.action); }
   }
   function submitComposer() {
+    if (composerMenuOpen) return;
     if (activeComposerSkill) { const skill = activeComposerSkill; setActiveComposerSkill(null); runChatSkill?.(skill.id, query); requestAnimationFrame(() => composerInputRef.current?.focus()); return; }
     const taskSkillId = composerTaskSkillId(query);
     if (taskSkillId && skills.some(skill => skill.id === taskSkillId)) { runChatSkill?.(taskSkillId, query); requestAnimationFrame(() => composerInputRef.current?.focus()); return; }
